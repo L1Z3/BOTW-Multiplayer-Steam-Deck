@@ -16,9 +16,9 @@ WORKING_DIR = os.path.expanduser("~/.local/share/botwminstaller")
 MOD_DIR = os.path.join(WORKING_DIR, "BreathOfTheWildMultiplayer")
 
 # TODO don't hard code these, get input from user
-GAME_DIR = "~/Applications/modding-botw/rom/00050000101c9400_v0/content"
-DLC_DIR = "~/Applications/modding-botw/rom/0005000c101c9400_v80/content/0010"
-UPDATE_DIR = "~/Applications/modding-botw/rom/0005000e101c9400_v208/content"
+GAME_DIR = os.path.expanduser("~/Applications/modding-botw/rom/00050000101c9400_v0/content")
+DLC_DIR = os.path.expanduser("~/Applications/modding-botw/rom/0005000c101c9400_v80/content/0010")
+UPDATE_DIR = os.path.expanduser("~/Applications/modding-botw/rom/0005000e101c9400_v208/content")
 
 def download_mod_files():
     headers = CaseInsensitiveDict()
@@ -52,9 +52,9 @@ def download_mod_files():
 def generate_graphics_packs():
     with open("settings_template.json", "r") as f:
         settings_json = json.load(f)
-    settings_json["game_dir"] = os.path.expanduser(GAME_DIR)
-    settings_json["dlc_dir"] = os.path.expanduser(DLC_DIR)
-    settings_json["update_dir"] = os.path.expanduser(UPDATE_DIR)
+    settings_json["game_dir"] = GAME_DIR
+    settings_json["dlc_dir"] = DLC_DIR
+    settings_json["update_dir"] = UPDATE_DIR
     settings_json["store_dir"] = os.path.expanduser("~/.config/bcml")
     settings_json["export_dir"] = os.path.join(WORKING_DIR, "bcml_exports")
 
