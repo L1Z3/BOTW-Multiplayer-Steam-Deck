@@ -11,6 +11,7 @@ import json
 from bcml.install import export, install_mod, refresh_merges
 import py7zr
 
+
 DOWNLOAD_URL = "https://api.github.com/repos/edgarcantuco/BOTW.Release/releases"
 WORKING_DIR = os.path.expanduser("~/.local/share/botwminstaller")
 MOD_DIR = os.path.join(WORKING_DIR, "BreathOfTheWildMultiplayer")
@@ -103,7 +104,7 @@ def checkPath(path : str, **kwargs):
             break
 
     #if an exception occurs
-    except Exception:
+    except Exception as e:
 
       #set the reason for failure to the exception
       reason = e
@@ -217,21 +218,84 @@ def getPath(inputMessage : str, **kwargs):
   #return the valid path
   return Path[2]
 
-
-#TODO // check if path exists and then ignore future asks if so
 #check for EmuDeck dirs
-#emudeck_GAME_DIR = checkPath()
-#emudeck_UPDATE_DIR = checkPath()
-#emudeck_DLC_DIR = checkPath()
+emudeck_CEMU_DIR = checkPath("Z:/home/deck/Emulation/roms/wiiu", dirIncludes=['Cemu.exe','settings.xml'])
 
-#get the game directory
-GAME_DIR = getPath("Directory of the Breath of the Wild Game Dump: ", requiredSubFiles={'content/Layout':['Horse.sblarc']})
+#get the Cemu directory
+if emudeck_CEMU_DIR[0] == False:
+    CEMU_DIR = getPath("Directory to your Cemu Installation (where Cemu.exe is): ", requiredFiles=['Cemu.exe','settings.xml'])
+else:
+    CEMU_DIR = emudeck_CEMU_DIR[2]
 
-#get the update directory
-UPDATE_DIR = getPath("Directory of Breath of the Wild Update: ", requiredPhrases=['mlc','usr','title'],requiredSubFiles={'content/Actor/Pack':['ActorObserverByActorTagTag.sbactorpack']})
+if CEMU_DIR[:-1] != '/' and CEMU_DIR[:-1] != '\\':
+    CEMU_DIR += '/'
 
-#get the dlc directory
-DLC_DIR = getPath("Directory of Breath of the Wild Update: ", requiredPhrases=['mlc','usr','title'],requiredSubFiles={'content/0010/Movie':['Demo655_0.mp4']})
+gameInXML = False
+updateInXML = False
+dlcInXML = False
+
+try:
+    # Load the XML file
+    tree = ET.parse(CEMU_DIR+'title_list_cache.xml')
+    root = tree.getroot()
+
+    # Find the paths with a specific titleId
+
+    #game
+    title_id = '00050000101c9400'
+    for title in root.findall(f".//title[@titleId='{title_id}']"):
+        if (xml_GAME_DIR:=title.find('path').text)[0] == True:
+            GAME_DIR = xml_GAME_DIR[2]
+            gameInXML = True
+            
+
+    #update
+    title_id = '0005000e101c9400'
+    for title in root.findall(f".//title[@titleId='{title_id}']"):
+        if (xml_UPDATE_DIR:=title.find('path').text)[0] == True:
+            UPDATE_DIR = xml_UPDATE_DIR
+            updateInXML = True
+
+    #dlc
+    title_id = '0005000c101c9400'
+    for title in root.findall(f".//title[@titleId='{title_id}']"):
+        if (xml_DLC_DIR:=title.find('path').text)[0] == True:
+            DLC_DIR = xml_DLC_DIR
+            dlcInXML = True
+        
+except:
+    print("No title_list_cache.xml found (this is perfectly fine)...")
+
+
+
+
+
+
+
+
+#get the game directory if not in xml
+if gameInXML == False:
+    emudeck_GAME_DIR = checkPath("Z:/home/deck/Emulation/roms/wii/mlc01/usr/title/0005000/101c9400", subFolderIncludes={'content/Layout':['Horse.sblarc']})
+    if emudeck_GAME_DIR[0] == False:
+        GAME_DIR = getPath("Directory of the Breath of the Wild Game Dump (where the /content folder is): ", requiredSubFiles={'content/Layout':['Horse.sblarc']})
+    else:
+        GAME_DIR = emudeck_GAME_DIR[2]
+
+#get the update directory if not in xml
+if updateInXML == False:
+    emudeck_UPDATE_DIR = checkPath("Z:/home/deck/Emulation/roms/wii/mlc01/usr/title/0005000e/101c9400", pathContains=['usr','title'],subFolderIncludes={'content/Actor/Pack':['ActorObserverByActorTagTag.sbactorpack']})
+    if emudeck_UPDATE_DIR[0] == False:
+        UPDATE_DIR = getPath("Directory of Breath of the Wild Update (where the /content folder is): ", requiredPhrases=['usr','title'],requiredSubFiles={'content/Actor/Pack':['ActorObserverByActorTagTag.sbactorpack']})
+    else:
+        UPDATE_DIR = emudeck_UPDATE_DIR[2]
+
+#get the dlc directory if not in xml
+if dlcInXML == False:
+    emudeck_DLC_DIR = checkPath("Z:/home/deck/Emulation/roms/wii/mlc01/usr/title/0005000c/101c9400", pathContains=['usr','title'],subFolderIncludes={'content/0010/Movie':['Demo655_0.mp4']})
+    if emudeck_DLC_DIR[0] == False:
+        DLC_DIR = getPath("Directory of Breath of the Wild Update (where the /content folder is): ", requiredPhrases=['usr','title'],requiredSubFiles={'content/0010/Movie':['Demo655_0.mp4']})
+    else:
+        DLC_DIR = emudeck_DLC_DIR[2]
 
 #!!!IMPORTANT!!! the tests I used to check each directory may not work for everyone. This is based upon my files and my files may be messed up who knows. Double check these with your files to see if the tests work for you too :)
 
@@ -365,5 +429,6 @@ def main(cemu_path):
     tree.write(settings_path)
 
 if __name__ == "__main__":
-    cemu_path = "/path/to/cemu"
+    cemu_path = CEMU_DIR
     main(cemu_path)
+
