@@ -1,15 +1,18 @@
-import os
-import shutil
-#from pysteam.shortcuts import write_shortcuts
-from xml.etree import ElementTree as ET
-import requests
-from requests.structures import CaseInsensitiveDict
-import zipfile
-from pathlib import Path
-import uuid
+import collections
 import json
-from bcml.install import export, install_mod, refresh_merges
+import os
 import py7zr
+import requests
+import shutil
+import uuid
+import vdf
+import zipfile
+
+from _crc_algorithms import Crc
+from bcml.install import export, install_mod, refresh_merges
+from pathlib import Path
+from requests.structures import CaseInsensitiveDict
+from xml.etree import ElementTree as ET
 
 
 DOWNLOAD_URL = "https://api.github.com/repos/edgarcantuco/BOTW.Release/releases"
@@ -421,6 +424,71 @@ def generate_graphics_packs():
 
     # TODO enable the packs with settings.
 
+Shortcut = collections.namedtuple('Shortcut', ['name', 'exe', 'startdir', 'icon', 'tags'])
+
+
+def shortcut_app_id(shortcut):
+    """
+    Generates the app id for a given shortcut. Steam uses app ids as a unique
+    identifier for games, but since shortcuts dont have a canonical serverside
+    representation they need to be generated on the fly. The important part
+    about this function is that it will generate the same app id as Steam does
+    for a given shortcut
+    """
+    algorithm = Crc(width = 32, poly = 0x04C11DB7, reflect_in = True, xor_in = 0xffffffff, reflect_out = True, xor_out = 0xffffffff)
+    crc_input = ''.join([shortcut.exe,shortcut.name])
+    high_32 = algorithm.bit_by_bit(crc_input) | 0x80000000
+    full_64 = (high_32 << 32) | 0x02000000
+    return str(full_64)
+
+def generate_steam_shortcut():
+    # Get the existing user ids
+    userDataFolder = os.path.expanduser(STEAM_DIR + "/userdata/")
+    userIds = os.listdir(userDataFolder)
+
+    # Prompt user to pick the user id
+    print("User IDs:")
+    for i, user_id in enumerate(userIds):
+        print(f"{i + 1}. {user_id}")
+
+    selected_index = int(input("Enter the number of the user ID you want to use: ")) - 1
+    user_id = userIds[selected_index]
+
+    shortcuts_path = os.path.expanduser(STEAM_DIR + f"/userdata/{user_id}/config/shortcuts.vdf")
+    if not os.path.exists(shortcuts_path):
+        with open(shortcuts_path, "wb") as f:
+            vdf.binary_dump({"shortcuts": {}}, f)
+
+    with open(shortcuts_path, "rb") as f:
+        shortcuts = vdf.binary_load(f)
+
+    # Check to see if there is an entry with the name "Breath of the Wild Multiplayer Mod"
+    app_id = None
+    for shortcut in shortcuts.get("shortcuts", {}).values():
+        if shortcut["AppName"] == "Breath of the Wild Multiplayer Mod":
+            app_id = shortcut_app_id(Shortcut(shortcut["AppName"], shortcut["exe"], shortcut["StartDir"], "", []))
+            break
+
+    # If not, generate a shortcut with the name "Breath of the Wild Multiplayer Mod"
+    if not app_id:
+        mod_exe = os.path.join(MOD_DIR, "Breath of the Wild Multiplayer.exe")
+        new_shortcut = Shortcut("Breath of the Wild Multiplayer Mod", mod_exe, MOD_DIR, "", [])
+
+        app_id = shortcut_app_id(new_shortcut)
+        next_app_id = max((int(key) for key in shortcuts.get("shortcuts", {}).keys()), default=0) + 1
+        shortcuts["shortcuts"][str(next_app_id)] = {
+            "AppName": new_shortcut.name,
+            "exe": new_shortcut.exe,
+            "StartDir": new_shortcut.startdir,
+            "icon": new_shortcut.icon,
+            "tags": {str(i): tag for i, tag in enumerate(new_shortcut.tags)}
+        }
+
+        with open(shortcuts_path, "wb") as f:
+            vdf.binary_dump(shortcuts, f)
+
+    return int(app_id)
+
 def main(cemu_path):
     # Generate the working directory
     os.makedirs(WORKING_DIR, exist_ok=True)
@@ -428,20 +496,12 @@ def main(cemu_path):
     # Download the latest mod files
     download_mod_files()
 
-    # Create a Steam shortcut for 'Breath of the Wild Multiplayer.exe'
-    game_path = os.path.join(MOD_DIR, "Breath of the Wild Multiplayer.exe")
-    write_shortcuts(game_path, "Breath of the Wild Multiplayer", cemu_path)
-
-    # Get the id for the Steam shortcut
-    shortcut_path = os.path.join(cemu_path, "Breath of the Wild Multiplayer.lnk")
-    with open(shortcut_path, "r") as f:
-        contents = f.read()
-        id = contents.split("steamid=")[1].split("&")[0]
-
+    # Generate the shortcut for steam
+    generate_steam_shortcut()
 
     # TODO install protontricks if not installed already?
     # Run protontricks to install dotnetcoredesktop6
-    os.system(f"protontricks {id} install dotnetcoredesktop6")
+    #os.system(f"protontricks {id} install dotnetcoredesktop6")
 
     # Generate the graphics packs from the mod files
     generate_graphics_packs()
@@ -461,9 +521,17 @@ def main(cemu_path):
     ]
 
     graphic_pack_element = root.find("GraphicPack")
+
     for entry in graphic_pack_entries:
-        entry_element = ET.SubElement(graphic_pack_element, "Entry", entry)
-        graphic_pack_element.append(entry_element)
+        existing_entry = None
+        for elem in graphic_pack_element.findall("Entry"):
+            if elem.attrib["filename"] == entry["filename"]:
+                existing_entry = elem
+                break
+
+        if not existing_entry:
+            entry_element = ET.SubElement(graphic_pack_element, "Entry", entry)
+            graphic_pack_element.append(entry_element)
 
     tree.write(settings_path)
 
