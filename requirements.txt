@@ -1,0 +1,4 @@
+bcml==3.10.8
+py7zr
+requests
+pysteam==1.0.0b2

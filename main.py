@@ -1,17 +1,24 @@
 import os
 import shutil
-from steampy.shortcuts import create_shortcut
+from pysteam.shortcuts import write_shortcuts
 from xml.etree import ElementTree as ET
 import requests
 from requests.structures import CaseInsensitiveDict
 import zipfile
+from pathlib import Path
 import uuid
-import os
 import json
+from bcml.install import export, install_mod, refresh_merges
+import py7zr
 
 DOWNLOAD_URL = "https://api.github.com/repos/edgarcantuco/BOTW.Release/releases"
 WORKING_DIR = os.path.expanduser("~/.local/share/botwminstaller")
 MOD_DIR = os.path.join(WORKING_DIR, "BreathOfTheWildMultiplayer")
+
+# TODO don't hard code these, get input from user
+GAME_DIR = "~/Applications/modding-botw/rom/00050000101c9400_v0/content"
+DLC_DIR = "~/Applications/modding-botw/rom/0005000c101c9400_v80/content/0010"
+UPDATE_DIR = "~/Applications/modding-botw/rom/0005000e101c9400_v208/content"
 
 def download_mod_files():
     headers = CaseInsensitiveDict()
@@ -41,6 +48,61 @@ def download_mod_files():
     else:
         raise Exception("Error downloading mod files")
 
+
+def generate_graphics_packs():
+    with open("settings_template.json", "r") as f:
+        settings_json = json.load(f)
+    settings_json["game_dir"] = os.path.expanduser(GAME_DIR)
+    settings_json["dlc_dir"] = os.path.expanduser(DLC_DIR)
+    settings_json["update_dir"] = os.path.expanduser(UPDATE_DIR)
+    settings_json["store_dir"] = os.path.expanduser("~/.config/bcml")
+    settings_json["export_dir"] = os.path.join(WORKING_DIR, "bcml_exports")
+
+    temp_bcml_dir = os.path.expanduser('~/.config/bcml_temp')
+    bcml_dir = os.path.expanduser('~/.config/bcml')
+
+    if os.path.exists(temp_bcml_dir):
+        shutil.rmtree(temp_bcml_dir)
+
+    if os.path.exists(bcml_dir):
+        shutil.move(bcml_dir, temp_bcml_dir)
+
+    os.makedirs(bcml_dir)
+
+    with open(os.path.join(bcml_dir, 'settings.json'), 'w') as f:
+        json.dump(settings_json, f, indent=4)
+
+    install_mod(Path(MOD_DIR) / "BNPs" / "BreathoftheWildMultiplayer.bnp")
+    refresh_merges()
+    install_mod(Path(MOD_DIR) / "BNPs" / "BOTWMultiplayer-Classic.bnp")
+    refresh_merges()
+
+    export_path = Path(WORKING_DIR) / "exported-mods.7z"
+    export(export_path, True)
+
+    py7zr.unpack_7zarchive(export_path,
+                           os.path.join(WORKING_DIR, "BreathOfTheWild_BCML"))
+    rules = Path(WORKING_DIR) / "BreathOfTheWild_BCML" / "rules.txt"
+    rules.write_text(
+        "[Definition]\n"
+        "titleIds = 00050000101C9300,00050000101C9400,00050000101C9500\n"
+        "name = BCML\n"
+        "path = The Legend of Zelda: Breath of the Wild/Mods/BCML\n"
+        "description = Complete pack of mods merged using BCML\n"
+        "version = 7\n"
+        "default = true\n"
+        "fsPriority = 9999",
+        encoding="utf-8",
+    )
+
+    shutil.rmtree(bcml_dir)
+
+    shutil.move(temp_bcml_dir, bcml_dir)
+
+    # TODO copy into graphicsPacks and copy patches to separate dir
+
+    # TODO enable the packs with settings.
+
 def main(cemu_path):
     # Generate the working directory
     os.makedirs(WORKING_DIR, exist_ok=True)
@@ -50,7 +112,7 @@ def main(cemu_path):
 
     # Create a Steam shortcut for 'Breath of the Wild Multiplayer.exe'
     game_path = os.path.join(MOD_DIR, "Breath of the Wild Multiplayer.exe")
-    create_shortcut(game_path, "Breath of the Wild Multiplayer", cemu_path)
+    write_shortcuts(game_path, "Breath of the Wild Multiplayer", cemu_path)
 
     # Get the id for the Steam shortcut
     shortcut_path = os.path.join(cemu_path, "Breath of the Wild Multiplayer.lnk")
@@ -64,7 +126,7 @@ def main(cemu_path):
     os.system(f"protontricks {id} install dotnetcoredesktop6")
 
     # Generate the graphics packs from the mod files
-    # TODO: add code to generate the graphics packs from the mod files
+    generate_graphics_packs()
 
     # Place the graphics packs files into the appropriate directories in Cemu
     graphics_packs_dir = os.path.join(cemu_path, "graphicPacks")
