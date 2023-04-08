@@ -18,6 +18,7 @@ from xml.etree import ElementTree as ET
 DOWNLOAD_URL = "https://api.github.com/repos/edgarcantuco/BOTW.Release/releases"
 WORKING_DIR = os.path.expanduser("~/.local/share/botwminstaller")
 MOD_DIR = os.path.join(WORKING_DIR, "BreathOfTheWildMultiplayer")
+STEAM_DIR = os.path.expanduser("~/.steam/steam")
 
 #make function so it can be called within while statement
 # string path : the filepath as given by the user
@@ -25,7 +26,6 @@ MOD_DIR = os.path.join(WORKING_DIR, "BreathOfTheWildMultiplayer")
 # list dirIncludes : the requiredFiles list
 # dict subFolderIncludes : the requiredSubFiles dictionary
 def checkPath(path : str, **kwargs):
-
   #if the filepath does not end in the courtesy slash
   if path[:-1] != "/" and path[:-1] != "\\":
 
@@ -50,7 +50,7 @@ def checkPath(path : str, **kwargs):
     except AssertionError:
 
         #tell the user the programmer messed up
-        print(f"A check is misconfigured, please contact the developers of this application!\nLocation of Error: pathContains check. kwargs={kwargs}")
+        fprint(f"A check is misconfigured, please contact the developers of this application!\nLocation of Error: pathContains check. kwargs={kwargs}")
 
     #for each wanted phrase in the path
     for phrase in kwargs['pathContains']:
@@ -228,7 +228,7 @@ def get_sd_path():
     return None
 
 #check for EmuDeck dirs
-emudeck_CEMU_DIR = checkPath("Z:/home/deck/Emulation/roms/wiiu", dirIncludes=['Cemu.exe','settings.xml'])
+emudeck_CEMU_DIR = checkPath("/home/deck/Emulation/roms/wiiu", dirIncludes=['Cemu.exe','settings.xml'])
 
 if emudeck_CEMU_DIR[0] == False:
     emudeck_CEMU_DIR = checkPath(f"{get_sd_path()}/Emulation/roms/wiiu", dirIncludes=['Cemu.exe','settings.xml'])
@@ -299,9 +299,9 @@ except:
 
 #get the game directory if not in xml
 if gameInXML == False:
-    emudeck_GAME_DIR = checkPath("Z:/home/deck/Emulation/roms/wii/mlc01/usr/title/0005000/101c9400", subFolderIncludes={'content/Layout':['Horse.sblarc']})
+    emudeck_GAME_DIR = checkPath("/home/deck/Emulation/roms/wii/mlc01/usr/title/0005000/101c9400/content/", subFolderIncludes={'Layout':['Horse.sblarc']})
     if emudeck_GAME_DIR[0] == False:
-        GAME_DIR = getPath("Directory of the Breath of the Wild Game Dump (where the /content folder is): ", requiredSubFiles={'content/Layout':['Horse.sblarc']})
+        GAME_DIR = getPath("Directory of the Breath of the Wild Game Dump: ", requiredSubFiles={'Layout':['Horse.sblarc']})
     else:
         while confirmation:=input(f"Is this your BotW Game directory? [Y/n]\n{emudeck_GAME_DIR[2]}\n: ") not in ['Y','y','N','n']:
             pass
@@ -309,13 +309,13 @@ if gameInXML == False:
         if confirmation in ['Y','y']:
             GAME_DIR = emudeck_GAME_DIR[2]
         else:
-            GAME_DIR = getPath("Directory of the Breath of the Wild Game Dump (where the /content folder is): ", requiredSubFiles={'content/Layout':['Horse.sblarc']})
+            GAME_DIR = getPath("Directory of the Breath of the Wild Game Dump: ", requiredSubFiles={'Layout':['Horse.sblarc']})
 
 #get the update directory if not in xml
 if updateInXML == False:
-    emudeck_UPDATE_DIR = checkPath("Z:/home/deck/Emulation/roms/wii/mlc01/usr/title/0005000e/101c9400", pathContains=['usr','title'],subFolderIncludes={'content/Actor/Pack':['ActorObserverByActorTagTag.sbactorpack']})
+    emudeck_UPDATE_DIR = checkPath("/home/deck/Emulation/roms/wii/mlc01/usr/title/0005000e/101c9400/content/", pathContains=['usr','title'],subFolderIncludes={'Actor/Pack':['ActorObserverByActorTagTag.sbactorpack']})
     if emudeck_UPDATE_DIR[0] == False:
-        UPDATE_DIR = getPath("Directory of Breath of the Wild Update (where the /content folder is): ", requiredPhrases=['usr','title'],requiredSubFiles={'content/Actor/Pack':['ActorObserverByActorTagTag.sbactorpack']})
+        UPDATE_DIR = getPath("Directory of Breath of the Wild Update: ", requiredPhrases=['usr','title'],requiredSubFiles={'Actor/Pack':['ActorObserverByActorTagTag.sbactorpack']})
     else:
         while confirmation:=input(f"Is this your BotW Update directory? [Y/n]\n{emudeck_GAME_DIR[2]}\n: ") not in ['Y','y','N','n']:
             pass
@@ -323,13 +323,13 @@ if updateInXML == False:
         if confirmation in ['Y','y']:
             UPDATE_DIR = emudeck_UPDATE_DIR[2]
         else:
-            UPDATE_DIR = getPath("Directory of Breath of the Wild Update (where the /content folder is): ", requiredPhrases=['usr','title'],requiredSubFiles={'content/Actor/Pack':['ActorObserverByActorTagTag.sbactorpack']})
+            UPDATE_DIR = getPath("Directory of Breath of the Wild Update: ", requiredPhrases=['usr','title'],requiredSubFiles={'Actor/Pack':['ActorObserverByActorTagTag.sbactorpack']})
 
 #get the dlc directory if not in xml
 if dlcInXML == False:
-    emudeck_DLC_DIR = checkPath("Z:/home/deck/Emulation/roms/wii/mlc01/usr/title/0005000c/101c9400", pathContains=['usr','title'],subFolderIncludes={'content/0010/Movie':['Demo655_0.mp4']})
+    emudeck_DLC_DIR = checkPath("/home/deck/Emulation/roms/wii/mlc01/usr/title/0005000c/101c9400/content/0010/", pathContains=['usr','title'],subFolderIncludes={'Movie':['Demo655_0.mp4']})
     if emudeck_DLC_DIR[0] == False:
-        DLC_DIR = getPath("Directory of Breath of the Wild DLC (where the /content folder is): ", requiredPhrases=['usr','title'],requiredSubFiles={'content/0010/Movie':['Demo655_0.mp4']})
+        DLC_DIR = getPath("Directory of Breath of the Wild DLC: ", requiredPhrases=['usr','title'],requiredSubFiles={'Movie':['Demo655_0.mp4']})
     else:
         while confirmation:=input(f"Is this your BotW DLC directory? [Y/n]\n{emudeck_GAME_DIR[2]}\n: ") not in ['Y','y','N','n']:
             pass
@@ -337,7 +337,7 @@ if dlcInXML == False:
         if confirmation in ['Y','y']:
             DLC_DIR = emudeck_DLC_DIR[2]
         else:
-            DLC_DIR = getPath("Directory of Breath of the Wild DLC (where the /content folder is): ", requiredPhrases=['usr','title'],requiredSubFiles={'content/0010/Movie':['Demo655_0.mp4']})
+            DLC_DIR = getPath("Directory of Breath of the Wild DLC: ", requiredPhrases=['usr','title'],requiredSubFiles={'Movie':['Demo655_0.mp4']})
 
 #!!!IMPORTANT!!! the tests I used to check each directory may not work for everyone. This is based upon my files and my files may be messed up who knows. Double check these with your files to see if the tests work for you too :)
 
@@ -489,27 +489,7 @@ def generate_steam_shortcut():
 
     return int(app_id)
 
-def main(cemu_path):
-    # Generate the working directory
-    os.makedirs(WORKING_DIR, exist_ok=True)
-
-    # Download the latest mod files
-    download_mod_files()
-
-    # Generate the shortcut for steam
-    generate_steam_shortcut()
-
-    # TODO install protontricks if not installed already?
-    # Run protontricks to install dotnetcoredesktop6
-    #os.system(f"protontricks {id} install dotnetcoredesktop6")
-
-    # Generate the graphics packs from the mod files
-    generate_graphics_packs()
-
-    # Place the graphics packs files into the appropriate directories in Cemu
-    graphics_packs_dir = os.path.join(cemu_path, "graphicPacks")
-    # TODO: add code to place the graphics packs files into the appropriate directories
-
+def update_graphics_packs():
     # Add the relevant entries to the settings.xml file
     settings_path = os.path.join(cemu_path, "settings.xml")
     tree = ET.parse(settings_path)
@@ -534,6 +514,30 @@ def main(cemu_path):
             graphic_pack_element.append(entry_element)
 
     tree.write(settings_path)
+
+
+def main(cemu_path):
+    # Generate the working directory
+    os.makedirs(WORKING_DIR, exist_ok=True)
+
+    # Download the latest mod files
+    download_mod_files()
+
+    # Generate the shortcut for steam
+    generate_steam_shortcut()
+
+    # TODO install protontricks if not installed already?
+    # Run protontricks to install dotnetcoredesktop6
+    #os.system(f"protontricks {id} install dotnetcoredesktop6")
+
+    # Generate the graphics packs from the mod files
+    generate_graphics_packs()
+
+    # Place the graphics packs files into the appropriate directories in Cemu
+    graphics_packs_dir = os.path.join(cemu_path, "graphicPacks")
+    # TODO: add code to place the graphics packs files into the appropriate directories
+
+    update_graphics_packs()
 
 if __name__ == "__main__":
     cemu_path = CEMU_DIR
