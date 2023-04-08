@@ -1,6 +1,6 @@
 import os
 import shutil
-from pysteam.shortcuts import write_shortcuts
+#from pysteam.shortcuts import write_shortcuts
 from xml.etree import ElementTree as ET
 import requests
 from requests.structures import CaseInsensitiveDict
@@ -218,14 +218,30 @@ def getPath(inputMessage : str, **kwargs):
   #return the valid path
   return Path[2]
 
+#make function so that the sd card path can be found
+def get_sd_path():
+    if os.path.exists("/dev/mmcblk0p1"):
+        return os.popen("findmnt -n --raw --evaluate --output=target -S /dev/mmcblk0p1").read().strip()
+    return None
+
 #check for EmuDeck dirs
 emudeck_CEMU_DIR = checkPath("Z:/home/deck/Emulation/roms/wiiu", dirIncludes=['Cemu.exe','settings.xml'])
+
+if emudeck_CEMU_DIR[0] == False:
+    emudeck_CEMU_DIR = checkPath(f"{get_sd_path()}/Emulation/roms/wiiu", dirIncludes=['Cemu.exe','settings.xml'])
 
 #get the Cemu directory
 if emudeck_CEMU_DIR[0] == False:
     CEMU_DIR = getPath("Directory to your Cemu Installation (where Cemu.exe is): ", requiredFiles=['Cemu.exe','settings.xml'])
 else:
-    CEMU_DIR = emudeck_CEMU_DIR[2]
+    while confirmation:=input(f"Is this your Cemu directory? [Y/n]\n{emudeck_CEMU_DIR[2]}\n: ") not in ['Y','y','N','n']:
+        pass
+    
+    if confirmation in ['Y','y']:
+        CEMU_DIR = emudeck_CEMU_DIR[2]
+    else:
+        CEMU_DIR = getPath("Directory to your Cemu Installation (where Cemu.exe is): ", requiredFiles=['Cemu.exe','settings.xml'])
+    
 
 if CEMU_DIR[:-1] != '/' and CEMU_DIR[:-1] != '\\':
     CEMU_DIR += '/'
@@ -246,7 +262,11 @@ try:
     for title in root.findall(f".//title[@titleId='{title_id}']"):
         if (xml_GAME_DIR:=title.find('path').text)[0] == True:
             GAME_DIR = xml_GAME_DIR[2]
-            gameInXML = True
+            while confirmation:=input(f"Is this your BotW Game directory? [Y/n]\n{GAME_DIR[2]}\n: ") not in ['Y','y','N','n']:
+                pass
+
+            if confirmation in ['Y','y']:
+                gameInXML = True
             
 
     #update
@@ -254,24 +274,25 @@ try:
     for title in root.findall(f".//title[@titleId='{title_id}']"):
         if (xml_UPDATE_DIR:=title.find('path').text)[0] == True:
             UPDATE_DIR = xml_UPDATE_DIR
-            updateInXML = True
+            while confirmation:=input(f"Is this your BotW Update directory? [Y/n]\n{UPDATE_DIR[2]}\n: ") not in ['Y','y','N','n']:
+                pass
+
+            if confirmation in ['Y','y']:
+                updateInXML = True
 
     #dlc
     title_id = '0005000c101c9400'
     for title in root.findall(f".//title[@titleId='{title_id}']"):
         if (xml_DLC_DIR:=title.find('path').text)[0] == True:
             DLC_DIR = xml_DLC_DIR
-            dlcInXML = True
+            while confirmation:=input(f"Is this your BotW DLC directory? [Y/n]\n{GAME_DIR[2]}\n: ") not in ['Y','y','N','n']:
+                pass
+
+            if confirmation in ['Y','y']:
+                dlcInXML = True
         
 except:
     print("No title_list_cache.xml found (this is perfectly fine)...")
-
-
-
-
-
-
-
 
 #get the game directory if not in xml
 if gameInXML == False:
@@ -279,7 +300,13 @@ if gameInXML == False:
     if emudeck_GAME_DIR[0] == False:
         GAME_DIR = getPath("Directory of the Breath of the Wild Game Dump (where the /content folder is): ", requiredSubFiles={'content/Layout':['Horse.sblarc']})
     else:
-        GAME_DIR = emudeck_GAME_DIR[2]
+        while confirmation:=input(f"Is this your BotW Game directory? [Y/n]\n{emudeck_GAME_DIR[2]}\n: ") not in ['Y','y','N','n']:
+            pass
+
+        if confirmation in ['Y','y']:
+            GAME_DIR = emudeck_GAME_DIR[2]
+        else:
+            GAME_DIR = getPath("Directory of the Breath of the Wild Game Dump (where the /content folder is): ", requiredSubFiles={'content/Layout':['Horse.sblarc']})
 
 #get the update directory if not in xml
 if updateInXML == False:
@@ -287,15 +314,27 @@ if updateInXML == False:
     if emudeck_UPDATE_DIR[0] == False:
         UPDATE_DIR = getPath("Directory of Breath of the Wild Update (where the /content folder is): ", requiredPhrases=['usr','title'],requiredSubFiles={'content/Actor/Pack':['ActorObserverByActorTagTag.sbactorpack']})
     else:
-        UPDATE_DIR = emudeck_UPDATE_DIR[2]
+        while confirmation:=input(f"Is this your BotW Update directory? [Y/n]\n{emudeck_GAME_DIR[2]}\n: ") not in ['Y','y','N','n']:
+            pass
+
+        if confirmation in ['Y','y']:
+            UPDATE_DIR = emudeck_UPDATE_DIR[2]
+        else:
+            UPDATE_DIR = getPath("Directory of Breath of the Wild Update (where the /content folder is): ", requiredPhrases=['usr','title'],requiredSubFiles={'content/Actor/Pack':['ActorObserverByActorTagTag.sbactorpack']})
 
 #get the dlc directory if not in xml
 if dlcInXML == False:
     emudeck_DLC_DIR = checkPath("Z:/home/deck/Emulation/roms/wii/mlc01/usr/title/0005000c/101c9400", pathContains=['usr','title'],subFolderIncludes={'content/0010/Movie':['Demo655_0.mp4']})
     if emudeck_DLC_DIR[0] == False:
-        DLC_DIR = getPath("Directory of Breath of the Wild Update (where the /content folder is): ", requiredPhrases=['usr','title'],requiredSubFiles={'content/0010/Movie':['Demo655_0.mp4']})
+        DLC_DIR = getPath("Directory of Breath of the Wild DLC (where the /content folder is): ", requiredPhrases=['usr','title'],requiredSubFiles={'content/0010/Movie':['Demo655_0.mp4']})
     else:
-        DLC_DIR = emudeck_DLC_DIR[2]
+        while confirmation:=input(f"Is this your BotW DLC directory? [Y/n]\n{emudeck_GAME_DIR[2]}\n: ") not in ['Y','y','N','n']:
+            pass
+
+        if confirmation in ['Y','y']:
+            DLC_DIR = emudeck_DLC_DIR[2]
+        else:
+            DLC_DIR = getPath("Directory of Breath of the Wild DLC (where the /content folder is): ", requiredPhrases=['usr','title'],requiredSubFiles={'content/0010/Movie':['Demo655_0.mp4']})
 
 #!!!IMPORTANT!!! the tests I used to check each directory may not work for everyone. This is based upon my files and my files may be messed up who knows. Double check these with your files to see if the tests work for you too :)
 
