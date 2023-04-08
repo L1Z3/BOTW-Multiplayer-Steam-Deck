@@ -1,6 +1,6 @@
 import os
 import shutil
-#from pysteam.shortcuts import write_shortcuts
+from pysteam.shortcuts import write_shortcuts
 from xml.etree import ElementTree as ET
 import requests
 from requests.structures import CaseInsensitiveDict
@@ -15,6 +15,17 @@ import py7zr
 DOWNLOAD_URL = "https://api.github.com/repos/edgarcantuco/BOTW.Release/releases"
 WORKING_DIR = os.path.expanduser("~/.local/share/botwminstaller")
 MOD_DIR = os.path.join(WORKING_DIR, "BreathOfTheWildMultiplayer")
+
+#make function to normalise paths
+def normalise_path(path : str):
+    try:
+        drive = path.index(':') + 1
+    except:
+        drive = 0
+    path = path.replace("\\",'/').replace('//','/')[drive:]
+    if path[-1:] != '/':
+        path += '/'
+    return path
 
 #make function so it can be called within while statement
 # string path : the filepath as given by the user
@@ -165,7 +176,7 @@ def checkPath(path : str, **kwargs):
 
         #for each file
   #return the validity of the path, the reason for failure (returns as none if all is well), and the path tested
-  return (valid,reason,path)
+  return (valid,reason,normalise_path(path))
 
 #make function to get a specific path
 # string inputMessage : the text shown to ask the user for the path
@@ -260,8 +271,11 @@ try:
     #game
     title_id = '00050000101c9400'
     for title in root.findall(f".//title[@titleId='{title_id}']"):
-        if (xml_GAME_DIR:=title.find('path').text)[0] == True:
-            GAME_DIR = xml_GAME_DIR[2]
+        xml_GAME_DIR = normalise_path(title.find('path').text)
+        if '/content' not in xml_GAME_DIR:
+            xml_GAME_DIR += 'content/'
+        if (xml_GAME_DIR:=checkPath(xml_GAME_DIR, subFolderIncludes={'Layout':['Horse.sblarc']}))[0] == True:
+            GAME_DIR = normalise_path(xml_GAME_DIR[2])
             while confirmation:=input(f"Is this your BotW Game directory? [Y/n]\n{GAME_DIR[2]}\n: ") not in ['Y','y','N','n']:
                 pass
 
@@ -272,8 +286,11 @@ try:
     #update
     title_id = '0005000e101c9400'
     for title in root.findall(f".//title[@titleId='{title_id}']"):
-        if (xml_UPDATE_DIR:=title.find('path').text)[0] == True:
-            UPDATE_DIR = xml_UPDATE_DIR
+        xml_UPDATE_DIR = normalise_path(title.find('path').text)
+        if '/content' not in xml_UPDATE_DIR:
+            xml_UPDATE_DIR += 'content/'
+        if (xml_UPDATE_DIR:=checkPath(xml_UPDATE_DIR, pathContains=['usr','title'],subFolderIncludes={'Actor/Pack':['ActorObserverByActorTagTag.sbactorpack']}))[0] == True:
+            UPDATE_DIR = normalise_path(xml_UPDATE_DIR[2])
             while confirmation:=input(f"Is this your BotW Update directory? [Y/n]\n{UPDATE_DIR[2]}\n: ") not in ['Y','y','N','n']:
                 pass
 
@@ -283,8 +300,11 @@ try:
     #dlc
     title_id = '0005000c101c9400'
     for title in root.findall(f".//title[@titleId='{title_id}']"):
-        if (xml_DLC_DIR:=title.find('path').text)[0] == True:
-            DLC_DIR = xml_DLC_DIR
+        xml_DLC_DIR = normalise_path(title.find('path').text)
+        if '/content/0010' not in xml_DLC_DIR:
+            xml_DLC_DIR += 'content/0010/'
+        if (xml_DLC_DIR:=checkPath(xml_DLC_DIR, pathContains=['usr','title'],subFolderIncludes={'Movie':['Demo655_0.mp4']}))[0] == True:
+            DLC_DIR = normalise_path(xml_DLC_DIR[2])
             while confirmation:=input(f"Is this your BotW DLC directory? [Y/n]\n{GAME_DIR[2]}\n: ") not in ['Y','y','N','n']:
                 pass
 
@@ -296,9 +316,9 @@ except:
 
 #get the game directory if not in xml
 if gameInXML == False:
-    emudeck_GAME_DIR = checkPath("Z:/home/deck/Emulation/roms/wii/mlc01/usr/title/0005000/101c9400", subFolderIncludes={'content/Layout':['Horse.sblarc']})
+    emudeck_GAME_DIR = checkPath("/home/deck/Emulation/roms/wii/mlc01/usr/title/0005000/101c9400/content", subFolderIncludes={'Layout':['Horse.sblarc']})
     if emudeck_GAME_DIR[0] == False:
-        GAME_DIR = getPath("Directory of the Breath of the Wild Game Dump (where the /content folder is): ", requiredSubFiles={'content/Layout':['Horse.sblarc']})
+        GAME_DIR = getPath("Directory of the Breath of the Wild Game Dump (the /content folder): ", requiredSubFiles={'Layout':['Horse.sblarc']})
     else:
         while confirmation:=input(f"Is this your BotW Game directory? [Y/n]\n{emudeck_GAME_DIR[2]}\n: ") not in ['Y','y','N','n']:
             pass
@@ -306,13 +326,13 @@ if gameInXML == False:
         if confirmation in ['Y','y']:
             GAME_DIR = emudeck_GAME_DIR[2]
         else:
-            GAME_DIR = getPath("Directory of the Breath of the Wild Game Dump (where the /content folder is): ", requiredSubFiles={'content/Layout':['Horse.sblarc']})
+            GAME_DIR = getPath("Directory of the Breath of the Wild Game Dump (the /content folder): ", requiredSubFiles={'Layout':['Horse.sblarc']})
 
 #get the update directory if not in xml
 if updateInXML == False:
-    emudeck_UPDATE_DIR = checkPath("Z:/home/deck/Emulation/roms/wii/mlc01/usr/title/0005000e/101c9400", pathContains=['usr','title'],subFolderIncludes={'content/Actor/Pack':['ActorObserverByActorTagTag.sbactorpack']})
+    emudeck_UPDATE_DIR = checkPath("/home/deck/Emulation/roms/wii/mlc01/usr/title/0005000e/101c9400/content", pathContains=['usr','title'],subFolderIncludes={'Actor/Pack':['ActorObserverByActorTagTag.sbactorpack']})
     if emudeck_UPDATE_DIR[0] == False:
-        UPDATE_DIR = getPath("Directory of Breath of the Wild Update (where the /content folder is): ", requiredPhrases=['usr','title'],requiredSubFiles={'content/Actor/Pack':['ActorObserverByActorTagTag.sbactorpack']})
+        UPDATE_DIR = getPath("Directory of Breath of the Wild Update (the /content folder): ", requiredPhrases=['usr','title'],requiredSubFiles={'Actor/Pack':['ActorObserverByActorTagTag.sbactorpack']})
     else:
         while confirmation:=input(f"Is this your BotW Update directory? [Y/n]\n{emudeck_GAME_DIR[2]}\n: ") not in ['Y','y','N','n']:
             pass
@@ -320,13 +340,13 @@ if updateInXML == False:
         if confirmation in ['Y','y']:
             UPDATE_DIR = emudeck_UPDATE_DIR[2]
         else:
-            UPDATE_DIR = getPath("Directory of Breath of the Wild Update (where the /content folder is): ", requiredPhrases=['usr','title'],requiredSubFiles={'content/Actor/Pack':['ActorObserverByActorTagTag.sbactorpack']})
+            UPDATE_DIR = getPath("Directory of Breath of the Wild Update (the /content folder): ", requiredPhrases=['usr','title'],requiredSubFiles={'Actor/Pack':['ActorObserverByActorTagTag.sbactorpack']})
 
 #get the dlc directory if not in xml
 if dlcInXML == False:
-    emudeck_DLC_DIR = checkPath("Z:/home/deck/Emulation/roms/wii/mlc01/usr/title/0005000c/101c9400", pathContains=['usr','title'],subFolderIncludes={'content/0010/Movie':['Demo655_0.mp4']})
+    emudeck_DLC_DIR = checkPath("/home/deck/Emulation/roms/wii/mlc01/usr/title/0005000c/101c9400/content/0010", pathContains=['usr','title'],subFolderIncludes={'Movie':['Demo655_0.mp4']})
     if emudeck_DLC_DIR[0] == False:
-        DLC_DIR = getPath("Directory of Breath of the Wild DLC (where the /content folder is): ", requiredPhrases=['usr','title'],requiredSubFiles={'content/0010/Movie':['Demo655_0.mp4']})
+        DLC_DIR = getPath("Directory of Breath of the Wild DLC (the /content/0010 folder): ", requiredPhrases=['usr','title'],requiredSubFiles={'Movie':['Demo655_0.mp4']})
     else:
         while confirmation:=input(f"Is this your BotW DLC directory? [Y/n]\n{emudeck_GAME_DIR[2]}\n: ") not in ['Y','y','N','n']:
             pass
@@ -334,7 +354,7 @@ if dlcInXML == False:
         if confirmation in ['Y','y']:
             DLC_DIR = emudeck_DLC_DIR[2]
         else:
-            DLC_DIR = getPath("Directory of Breath of the Wild DLC (where the /content folder is): ", requiredPhrases=['usr','title'],requiredSubFiles={'content/0010/Movie':['Demo655_0.mp4']})
+            DLC_DIR = getPath("Directory of Breath of the Wild DLC (the /content/0010 folder): ", requiredPhrases=['usr','title'],requiredSubFiles={'Movie':['Demo655_0.mp4']})
 
 #!!!IMPORTANT!!! the tests I used to check each directory may not work for everyone. This is based upon my files and my files may be messed up who knows. Double check these with your files to see if the tests work for you too :)
 
