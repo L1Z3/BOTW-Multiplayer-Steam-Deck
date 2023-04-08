@@ -15,10 +15,225 @@ DOWNLOAD_URL = "https://api.github.com/repos/edgarcantuco/BOTW.Release/releases"
 WORKING_DIR = os.path.expanduser("~/.local/share/botwminstaller")
 MOD_DIR = os.path.join(WORKING_DIR, "BreathOfTheWildMultiplayer")
 
-# TODO don't hard code these, get input from user
-GAME_DIR = os.path.expanduser("~/Applications/modding-botw/rom/00050000101c9400_v0/content")
-DLC_DIR = os.path.expanduser("~/Applications/modding-botw/rom/0005000c101c9400_v80/content/0010")
-UPDATE_DIR = os.path.expanduser("~/Applications/modding-botw/rom/0005000e101c9400_v208/content")
+#make function so it can be called within while statement
+# string path : the filepath as given by the user
+# list pathContains : the requiredPhrases list
+# list dirIncludes : the requiredFiles list
+# dict subFolderIncludes : the requiredSubFiles dictionary
+def checkPath(path : str, **kwargs):
+
+  #if the filepath does not end in the courtesy slash
+  if path[:-1] != "/" and path[:-1] != "\\":
+
+    #append the slash
+    path += '/'
+
+  #set defaults
+  containsTrue = True
+  valid = True
+  reason = None
+
+  #if there are required substrings
+  if 'pathContains' in kwargs:
+
+    #try for AssertionError
+    try:
+
+        #assert that pathContains is a list
+        assert isinstance(kwargs['pathContains'], list)
+
+    #if assertion is wrong
+    except AssertionError:
+
+        #tell the user the programmer messed up
+        print(f"A check is misconfigured, please contact the developers of this application!\nLocation of Error: pathContains check. kwargs={kwargs}")
+
+    #for each wanted phrase in the path
+    for phrase in kwargs['pathContains']:
+
+        #if the phrase is not present in the given path
+        if phrase not in path:
+
+            #set containsTrue to False so future checks are skipped
+            containsTrue = False
+
+            #set reason for failure
+            reason = f"Filepath does not contain neccessary phrases\nPhrases needed to occur in path: {kwargs['pathContains']}"
+      
+            #tell the while loop to continue
+            valid = False
+
+            #end the for loop as a problem has occurred
+            break
+
+  #if the last check passed and there are required files
+  if containsTrue and 'dirIncludes' in kwargs:
+
+    #try for AssertionError
+    try:
+
+        #assert that dirIncludes is a list
+        assert isinstance(kwargs['dirIncludes'], list)
+
+    #if assertion is wrong
+    except AssertionError:
+
+        #tell the user the programmer messed up
+        print(f"A check is misconfigured, please contact the developers of this application!\nLocation of Error: dirIncludes check. kwargs={kwargs}")
+
+    #try statement to catch any directory issues
+    try:
+
+        #collect all the files in the path
+        files = os.listdir(path)
+
+        #for each file that is required
+        for file in kwargs['dirIncludes']:
+
+          #if the file is not present in the directory
+          if file not in files:
+
+            #set reason for failure
+            reason = f"Directory does not include neccessary files!\nFiles needed: {kwargs['dirIncludes']}\nFiles present: {files}"
+
+            #tell the while loop to continue
+            valid = False
+
+            #end the for loop as a problem has occurred
+            break
+
+    #if an exception occurs
+    except Exception:
+
+      #set the reason for failure to the exception
+      reason = e
+
+      #tell the while loop to continue
+      valid = False
+
+  if valid == True and 'subFolderIncludes' in kwargs:
+
+    #try for AssertionError
+    try:
+
+        #assert that subFolderIncludes is a dictionary
+        assert isinstance(kwargs['subFolderIncludes'], dict)
+
+    #if assertion is wrong
+    except AssertionError:
+
+        #tell the user the programmer messed up
+        print(f"A check is misconfigured, please contact the developers of this application!\nLocation of Error: subFolderIncludes check. kwargs={kwargs}")
+
+    #for each subfolder and collection of required files
+    for subFolder in kwargs['subFolderIncludes'].keys():
+
+        
+        #try statement to catch any directory issues
+        try:
+
+            #get list of each file in the subFolder
+            files = os.listdir(path+subFolder)
+
+            #for eacg file required
+            for file in kwargs['subFolderIncludes'][subFolder]:
+
+                #if the file is not present in the directory
+                if file not in files:
+
+                    #set reason for failure
+                    reason = f"Sub-directory does not include neccessary files!\nFiles needed: {kwargs['subFolderIncludes'][subFolder]}\nFiles present: {files}"
+
+                    #tell the while loop to continue
+                    valid = False
+
+                    #end the for loop as a problem has occurred
+                    break
+
+            if valid == False:
+                break
+
+        #if an exception occurs
+        except Exception as e:
+
+            #set the reason for failure to the exception
+            reason = e
+
+            #tell the while loop to continue
+            valid = False
+
+        #for each file
+  #return the validity of the path, the reason for failure (returns as none if all is well), and the path tested
+  return (valid,reason,path)
+
+#make function to get a specific path
+# string inputMessage : the text shown to ask the user for the path
+# list requiredPhrases : substrings that are required to be in the filepath
+# list requiredFiles : files that are required to be in the directory
+# dict requiredSubFiles : files that are required to be in a sub-directory
+#   format as follows : {'subdirectory':['file.txt','file2.json'],'subdirectory2/subsubdirectory':['coolfile.txt']} IMPORTANT: USE LISTS EVEN IF IT IS ONLY ONE FILE, DO NOT ADD A PRESLASH TO THE SUBDIRECTORY
+def getPath(inputMessage : str, **kwargs):
+
+  #try for AssertionError
+  try:
+
+    #assert that all arguments are the correct type and if kwarg does not exist set a default
+    assert isinstance(inputMessage, str)
+
+    if 'requiredPhrases' in kwargs:
+        assert isinstance(kwargs['requiredPhrases'], list)
+        reqPhrases = kwargs['requiredPhrases']
+    else:
+        reqPhrases = []
+
+    if 'requiredFiles' in kwargs:
+        assert isinstance(kwargs['requiredFiles'], list)
+        reqFiles = kwargs['requiredFiles']
+    else:
+        reqFiles = []
+
+    if 'requiredSubFiles' in kwargs:
+        assert isinstance(kwargs['requiredSubFiles'], dict)
+        reqSubFiles = kwargs['requiredSubFiles']
+    else:
+        reqSubFiles = {}
+
+  #if an assertion is wrong
+  except AssertionError:
+
+    #tell the user the programmer messed up
+    print(f"This ask is misconfigured, please contact the developers of this application!\nLocation of Error: getPath kwargs + message check. kwargs={kwargs}")
+
+    #end the function
+    return
+
+
+  #while an inputted path does not meet the requirements needed
+  while (Path:=checkPath(str(input(inputMessage)),pathContains=reqPhrases,dirIncludes=reqFiles,subFolderIncludes=reqSubFiles))[0] == False:
+
+    #tell the user the reason for failure
+    print(f"Invalid Path: {Path[1]}")
+
+  #return the valid path
+  return Path[2]
+
+
+#TODO // check if path exists and then ignore future asks if so
+#check for EmuDeck dirs
+#emudeck_GAME_DIR = checkPath()
+#emudeck_UPDATE_DIR = checkPath()
+#emudeck_DLC_DIR = checkPath()
+
+#get the game directory
+GAME_DIR = getPath("Directory of the Breath of the Wild Game Dump: ", requiredSubFiles={'content/Layout':['Horse.sblarc']})
+
+#get the update directory
+UPDATE_DIR = getPath("Directory of Breath of the Wild Update: ", requiredPhrases=['mlc','usr','title'],requiredSubFiles={'content/Actor/Pack':['ActorObserverByActorTagTag.sbactorpack']})
+
+#get the dlc directory
+DLC_DIR = getPath("Directory of Breath of the Wild Update: ", requiredPhrases=['mlc','usr','title'],requiredSubFiles={'content/0010/Movie':['Demo655_0.mp4']})
+
+#!!!IMPORTANT!!! the tests I used to check each directory may not work for everyone. This is based upon my files and my files may be messed up who knows. Double check these with your files to see if the tests work for you too :)
 
 def download_mod_files():
     headers = CaseInsensitiveDict()
