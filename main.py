@@ -184,8 +184,10 @@ def get_directory(xml_root: Optional[ET.Element],
     return get_path(f"Directory of the Breath of the Wild {prompt_type} Dump (the /{base_dir} folder): ",
                     required_phrases=path_contains, required_sub_files=sub_folders)
 
+
 def scan_for_cemu():
-    confirmation = wait_for_confirmation(f"Do you want to automatically look for a Cemu installation? [Y/n]: ")
+    confirmation = wait_for_confirmation(f"Do you want to automatically look for a Cemu installation? "
+                                         f"This will scan your home directory for Cemu.exe and may take a while. [Y/n]: ")
     if confirmation:
         for root, dirs, files in os.walk(os.path.expanduser('~/')):
             for filename in files:
@@ -194,48 +196,68 @@ def scan_for_cemu():
         return False
     return False
 
-def download_cemu():
+
+def download_cemu() -> Optional[str]:
     confirmation = wait_for_confirmation(f"Do you want to download Cemu now? [Y/n]: ")
     if confirmation:
         try:
-            z = zipfile.ZipFile(io.BytesIo(requests.get(CEMU_URL).content))
-            wiiu_dir = os.path.expanduser('~/wiiu/')
-            os.makedirs(wiiu_dir)
+            z = zipfile.ZipFile(io.BytesIO(requests.get(CEMU_URL).content))
+            wiiu_dir = os.path.expanduser('~/Emulation/roms/wiiu/')
+            os.makedirs(wiiu_dir, exist_ok=True)
             z.extractall(wiiu_dir)
-            zipinfo = str(z.infolist())
-            return wiiu_dir+'/'+zipinfo[zipinfo.index("filename='")+11:zipinfo.index('external')-2]
+            zipinfo = z.infolist()
+            cemu_subdir = os.path.join(wiiu_dir, zipinfo[0].filename)
+            for item in os.listdir(cemu_subdir):
+                item_path = os.path.join(cemu_subdir, item)
+                if os.path.isdir(item_path):
+                    shutil.copytree(item_path, os.path.join(wiiu_dir, item))
+                else:
+                    shutil.copy2(item_path, wiiu_dir)
+            shutil.rmtree(cemu_subdir)
+            return wiiu_dir
         except ValueError:
             Exception("ERROR: The information inside of the Cemu download was not what was expected! Please contact the developers of this application!")
         except:
             print("Something went wrong with the download, please download manually or select a previous installation in the next step!")
-            return False
-    return False
+    return None
+
+def get_cemu_dir():
+    # Check for EmuDeck dirs
+    is_valid, reason, emudeck_cemu_dir = check_path(
+        os.path.expanduser("~/Emulation/roms/wiiu"), dir_includes=['Cemu.exe', 'settings.xml'])
+
+    if not is_valid:
+        sd_path = get_sd_path()
+        if sd_path is not None:
+            is_valid, reason, emudeck_cemu_dir = check_path(
+                f"{sd_path}/Emulation/roms/wiiu", dir_includes=['Cemu.exe', 'settings.xml'])
+    cemu_dir = None
+
+    if is_valid:
+        confirmation = wait_for_confirmation(f"Is this your Cemu directory? \n{emudeck_cemu_dir}\n[Y/n]: ")
+        if confirmation:
+            cemu_dir = emudeck_cemu_dir
+    if cemu_dir is None:
+        print("Could not automatically detect a Cemu installation. "
+              "You will have the option to scan for Cemu, download Cemu, or manually select a Cemu exe.")
+        got_by_scan = scan_for_cemu()
+        if got_by_scan:
+            cemu_dir = got_by_scan
+            print(f"Successfully found Cemu at {cemu_dir}!")
+    if cemu_dir is None:
+        downloaded = download_cemu()
+        if downloaded:
+            cemu_dir = downloaded
+            print(f"Successfully downloaded Cemu to {cemu_dir}!")
+    if cemu_dir is None:
+        cemu_dir = get_path("Directory to your Cemu Installation (where Cemu.exe is): ",
+                            required_files=['Cemu.exe', 'settings.xml'])
+
+    return cemu_dir
 
 
 def get_user_paths() -> Tuple[str, str, str, str]:
-    # Check for EmuDeck dirs
-    is_valid, reason, emudeck_cemu_dir = check_path(
-        "Z:/home/deck/Emulation/roms/wiiu", dir_includes=['Cemu.exe', 'settings.xml'])
-
-    if not is_valid:
-        is_valid, reason, emudeck_cemu_dir = check_path(
-            f"{get_sd_path()}/Emulation/roms/wiiu", dir_includes=['Cemu.exe', 'settings.xml'])
-
-    # Get the Cemu directory
-    if is_valid:
-        confirmation = wait_for_confirmation(f"Is this your Cemu directory? [Y/n]\n{emudeck_cemu_dir}\n: ")
-
-        cemu_dir = emudeck_cemu_dir if confirmation \
-    else gotByScan:=scan_for_cemu() if gotByScan else downloaded:=download_cemu() if downloaded else get_path("Directory to your Cemu Installation (where Cemu.exe is): ",
-                          required_files=['Cemu.exe', 'settings.xml'])
-    else:
-        if not (cemu_dir:=scan_for_cemu()) and not (cemu_dir:=download_cemu()):
-            cemu_dir = get_path(
-            "Directory to your Cemu Installation (where Cemu.exe is): ",
-            required_files=['Cemu.exe', 'settings.xml'])
-
-    if cemu_dir[-1] not in r'\/':
-        cemu_dir += '/'
+    cemu_dir = get_cemu_dir()
 
     root = None
     title_list_cache_path = os.path.join(cemu_dir, 'title_list_cache.xml')
