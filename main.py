@@ -86,7 +86,7 @@ def check_path(path: str, **kwargs) -> Tuple[bool, Optional[str], str]:
     return True, None, path
 
 
-def get_path(input_message: str, **kwargs) -> Optional[str]:
+def get_path(input_message: str, **kwargs) -> str:
     """
     Prompt the user to input a file path and validate it based on specified requirements.
 
