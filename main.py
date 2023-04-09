@@ -1,6 +1,7 @@
 import os
 import shutil
 from pysteam.shortcuts import write_shortcuts
+from typing import Optional, Tuple, Dict, List
 from xml.etree import ElementTree as ET
 import requests
 from requests.structures import CaseInsensitiveDict
@@ -11,352 +12,225 @@ import json
 from bcml.install import export, install_mod, refresh_merges
 import py7zr
 
-
 DOWNLOAD_URL = "https://api.github.com/repos/edgarcantuco/BOTW.Release/releases"
 WORKING_DIR = os.path.expanduser("~/.local/share/botwminstaller")
 MOD_DIR = os.path.join(WORKING_DIR, "BreathOfTheWildMultiplayer")
 
-#make function to normalise paths
-def normalise_path(path : str):
-    try:
-        drive = path.index(':') + 1
-    except:
-        drive = 0
-    path = path.replace("\\",'/').replace('//','/')[drive:]
-    if path[-1:] != '/':
-        path += '/'
-    return path
 
-#make function so it can be called within while statement
-# string path : the filepath as given by the user
-# list pathContains : the requiredPhrases list
-# list dirIncludes : the requiredFiles list
-# dict subFolderIncludes : the requiredSubFiles dictionary
-def checkPath(path : str, **kwargs):
+def normalize_path(path: str) -> str:
+    """
+    Converts a Windows path to a Unix path
+    :param path: path to convert
+    :return: path in Unix format
+    """
+    if len(path) < 2 or not path[0].isalpha() or path[1] != ':':
+        return path
 
-  #if the filepath does not end in the courtesy slash
-  if path[:-1] != "/" and path[:-1] != "\\":
+    # Replace backslashes with forward slashes
+    unix_path = path.replace('\\', '/')
 
-    #append the slash
-    path += '/'
+    # Remove drive letter
+    _, rest_of_path = unix_path.split(':', 1)
+    return rest_of_path
 
-  #set defaults
-  containsTrue = True
-  valid = True
-  reason = None
 
-  #if there are required substrings
-  if 'pathContains' in kwargs:
+def check_path(path: str, **kwargs) -> Tuple[bool, Optional[str], str]:
+    """
+    Check if the given file path meets specified requirements.
+    The function can be called within a while statement.
+    :param path: The file path as given by the user.
+    :param kwargs:
+        - path_contains (list): The list of required phrases in the file path.
+        - dir_includes (list): The list of required files in the directory.
+        - sub_folder_includes (dict): The dictionary of required subfiles in subfolders.
+    :return: Tuple (valid, reason, normalized_path) where valid is a boolean indicating
+             if the path is valid, reason is a string with the reason for failure (None if valid),
+             and normalized_path is the input path with a trailing slash added if necessary.
+    """
 
-    #try for AssertionError
-    try:
+    def normalize_path(p):
+        return p if p.endswith(('/', '\\')) else p + '/'
 
-        #assert that pathContains is a list
-        assert isinstance(kwargs['pathContains'], list)
+    path_contains: list = kwargs.get('path_contains')
+    dir_includes: list = kwargs.get('dir_includes')
+    sub_folder_includes: dict = kwargs.get('sub_folder_includes')
+    path = normalize_path(path)
 
-    #if assertion is wrong
-    except AssertionError:
+    if path_contains is not None:
+        for phrase in path_contains:
+            if phrase not in path:
+                reason = f"Filepath does not contain necessary phrases\nPhrases needed: {path_contains}"
+                return False, reason, path
 
-        #tell the user the programmer messed up
-        print(f"A check is misconfigured, please contact the developers of this application!\nLocation of Error: pathContains check. kwargs={kwargs}")
-
-    #for each wanted phrase in the path
-    for phrase in kwargs['pathContains']:
-
-        #if the phrase is not present in the given path
-        if phrase not in path:
-
-            #set containsTrue to False so future checks are skipped
-            containsTrue = False
-
-            #set reason for failure
-            reason = f"Filepath does not contain neccessary phrases\nPhrases needed to occur in path: {kwargs['pathContains']}"
-      
-            #tell the while loop to continue
-            valid = False
-
-            #end the for loop as a problem has occurred
-            break
-
-  #if the last check passed and there are required files
-  if containsTrue and 'dirIncludes' in kwargs:
-
-    #try for AssertionError
-    try:
-
-        #assert that dirIncludes is a list
-        assert isinstance(kwargs['dirIncludes'], list)
-
-    #if assertion is wrong
-    except AssertionError:
-
-        #tell the user the programmer messed up
-        print(f"A check is misconfigured, please contact the developers of this application!\nLocation of Error: dirIncludes check. kwargs={kwargs}")
-
-    #try statement to catch any directory issues
-    try:
-
-        #collect all the files in the path
-        files = os.listdir(path)
-
-        #for each file that is required
-        for file in kwargs['dirIncludes']:
-
-          #if the file is not present in the directory
-          if file not in files:
-
-            #set reason for failure
-            reason = f"Directory does not include neccessary files!\nFiles needed: {kwargs['dirIncludes']}\nFiles present: {files}"
-
-            #tell the while loop to continue
-            valid = False
-
-            #end the for loop as a problem has occurred
-            break
-
-    #if an exception occurs
-    except Exception as e:
-
-      #set the reason for failure to the exception
-      reason = e
-
-      #tell the while loop to continue
-      valid = False
-
-  if valid == True and 'subFolderIncludes' in kwargs:
-
-    #try for AssertionError
-    try:
-
-        #assert that subFolderIncludes is a dictionary
-        assert isinstance(kwargs['subFolderIncludes'], dict)
-
-    #if assertion is wrong
-    except AssertionError:
-
-        #tell the user the programmer messed up
-        print(f"A check is misconfigured, please contact the developers of this application!\nLocation of Error: subFolderIncludes check. kwargs={kwargs}")
-
-    #for each subfolder and collection of required files
-    for subFolder in kwargs['subFolderIncludes'].keys():
-
-        
-        #try statement to catch any directory issues
+    if dir_includes is not None:
         try:
-
-            #get list of each file in the subFolder
-            files = os.listdir(path+subFolder)
-
-            #for eacg file required
-            for file in kwargs['subFolderIncludes'][subFolder]:
-
-                #if the file is not present in the directory
+            files = os.listdir(path)
+            for file in dir_includes:
                 if file not in files:
-
-                    #set reason for failure
-                    reason = f"Sub-directory does not include neccessary files!\nFiles needed: {kwargs['subFolderIncludes'][subFolder]}\nFiles present: {files}"
-
-                    #tell the while loop to continue
-                    valid = False
-
-                    #end the for loop as a problem has occurred
-                    break
-
-            if valid == False:
-                break
-
-        #if an exception occurs
+                    reason = f"Directory missing necessary files!\nFiles needed: {dir_includes}\nFiles present: {files}"
+                    return False, reason, path
         except Exception as e:
+            return False, str(e), path
 
-            #set the reason for failure to the exception
-            reason = e
+    if sub_folder_includes is not None:
+        for subFolder, required_files in sub_folder_includes.items():
+            try:
+                files = os.listdir(path + subFolder)
+                for file in required_files:
+                    if file not in files:
+                        reason = f"Sub-directory missing necessary files!\nFiles needed: {required_files}\nFiles present: {files}"
+                        return False, reason, path
+            except Exception as e:
+                return False, str(e), path
 
-            #tell the while loop to continue
-            valid = False
-
-        #for each file
-  #return the validity of the path, the reason for failure (returns as none if all is well), and the path tested
-  return (valid,reason,normalise_path(path))
-
-#make function to get a specific path
-# string inputMessage : the text shown to ask the user for the path
-# list requiredPhrases : substrings that are required to be in the filepath
-# list requiredFiles : files that are required to be in the directory
-# dict requiredSubFiles : files that are required to be in a sub-directory
-#   format as follows : {'subdirectory':['file.txt','file2.json'],'subdirectory2/subsubdirectory':['coolfile.txt']} IMPORTANT: USE LISTS EVEN IF IT IS ONLY ONE FILE, DO NOT ADD A PRESLASH TO THE SUBDIRECTORY
-def getPath(inputMessage : str, **kwargs):
-
-  #try for AssertionError
-  try:
-
-    #assert that all arguments are the correct type and if kwarg does not exist set a default
-    assert isinstance(inputMessage, str)
-
-    if 'requiredPhrases' in kwargs:
-        assert isinstance(kwargs['requiredPhrases'], list)
-        reqPhrases = kwargs['requiredPhrases']
-    else:
-        reqPhrases = []
-
-    if 'requiredFiles' in kwargs:
-        assert isinstance(kwargs['requiredFiles'], list)
-        reqFiles = kwargs['requiredFiles']
-    else:
-        reqFiles = []
-
-    if 'requiredSubFiles' in kwargs:
-        assert isinstance(kwargs['requiredSubFiles'], dict)
-        reqSubFiles = kwargs['requiredSubFiles']
-    else:
-        reqSubFiles = {}
-
-  #if an assertion is wrong
-  except AssertionError:
-
-    #tell the user the programmer messed up
-    print(f"This ask is misconfigured, please contact the developers of this application!\nLocation of Error: getPath kwargs + message check. kwargs={kwargs}")
-
-    #end the function
-    return
+    return True, None, path
 
 
-  #while an inputted path does not meet the requirements needed
-  while (Path:=checkPath(str(input(inputMessage)),pathContains=reqPhrases,dirIncludes=reqFiles,subFolderIncludes=reqSubFiles))[0] == False:
+def get_path(input_message: str, **kwargs) -> Optional[str]:
+    """
+    Prompt the user to input a file path and validate it based on specified requirements.
 
-    #tell the user the reason for failure
-    print(f"Invalid Path: {Path[1]}")
+    :param input_message: The text shown to ask the user for the path.
+    :param kwargs:
+        - required_phrases (list): A list of substrings that are required to be in the file path.
+        - required_files (list): A list of files that are required to be in the directory.
+        - required_sub_files (dict): A dictionary of files that are required to be in a subdirectory.
+          Format: {'subdirectory': ['file.txt', 'file2.json'], 'subdirectory2/subsubdirectory': ['coolfile.txt']}
+          IMPORTANT: USE LISTS EVEN IF IT IS ONLY ONE FILE, DO NOT ADD A PRESLASH TO THE SUBDIRECTORY.
+    :return: The valid file path entered by the user or None if invalid.
+    """
+    required_phrases: list = kwargs.get('required_phrases', [])
+    required_files: list = kwargs.get('required_files', [])
+    required_sub_files: dict = kwargs.get('required_sub_files', {})
 
-  #return the valid path
-  return Path[2]
+    while True:
+        user_input = input(input_message)
+        is_valid, reason, normalized_path = check_path(
+            user_input,
+            path_contains=required_phrases,
+            dir_includes=required_files,
+            sub_folder_includes=required_sub_files
+        )
+        if is_valid:
+            return normalized_path
+        else:
+            print(f"Invalid Path: {reason}")
 
-#make function so that the sd card path can be found
+
 def get_sd_path():
+    """
+    Get the path to the SD card
+    """
     if os.path.exists("/dev/mmcblk0p1"):
         return os.popen("findmnt -n --raw --evaluate --output=target -S /dev/mmcblk0p1").read().strip()
     return None
 
-#check for EmuDeck dirs
-emudeck_CEMU_DIR = checkPath("Z:/home/deck/Emulation/roms/wiiu", dirIncludes=['Cemu.exe','settings.xml'])
 
-if emudeck_CEMU_DIR[0] == False:
-    emudeck_CEMU_DIR = checkPath(f"{get_sd_path()}/Emulation/roms/wiiu", dirIncludes=['Cemu.exe','settings.xml'])
-
-#get the Cemu directory
-if emudeck_CEMU_DIR[0] == False:
-    CEMU_DIR = getPath("Directory to your Cemu Installation (where Cemu.exe is): ", requiredFiles=['Cemu.exe','settings.xml'])
-else:
-    while confirmation:=input(f"Is this your Cemu directory? [Y/n]\n{emudeck_CEMU_DIR[2]}\n: ") not in ['Y','y','N','n']:
+def wait_for_confirmation(prompt: str) -> str:
+    while (confirmation := str(input(prompt)).lower()) not in ['y', 'n']:
         pass
-    
-    if confirmation in ['Y','y']:
-        CEMU_DIR = emudeck_CEMU_DIR[2]
+    return confirmation
+
+
+def get_directory(xml_root: Optional[ET.Element],
+                  installed_dir: str,
+                  title_id: str,
+                  base_dir: str,
+                  sub_folders: Dict[str, List[str]],
+                  path_contains: Optional[List[str]],
+                  prompt_type: str) -> str:
+    """
+    Get the directory for the specified type (game, update, or DLC) of Breath of the Wild.
+    The function checks the XML file, the default installed directory, and prompts the user if needed.
+
+    :param xml_root: The root element of the parsed XML file (None if XML file does not exist).
+    :param installed_dir: The default path of the installed directory to check.
+    :param title_id: The title ID to search for in the XML file.
+    :param base_dir: The base directory name expected in the path.
+    :param sub_folders: A dictionary of required sub-folders and their files to validate the directory.
+    :param path_contains: A list of substrings that are required to be in the file path (optional).
+    :param prompt_type: The type of directory being searched for (e.g., "Game", "Update", "DLC").
+
+    :return: The valid file path entered by the user or found in the XML or default directory.
+    """
+    if xml_root is not None:
+        for title in xml_root.findall(f".//title[@titleId='{title_id}']"):
+            xml_dir = normalize_path(title.find('path').text)
+            if not xml_dir.strip('/').strip('\\').endswith(base_dir):
+                xml_dir = os.path.join(xml_dir, base_dir)
+            is_valid, reason, xml_dir = check_path(xml_dir, path_contains=path_contains,
+                                                   sub_folder_includes=sub_folders)
+            if is_valid:
+                confirmation = wait_for_confirmation(f"Is this your BOTW {prompt_type} dir?\n{xml_dir}\n[Y/n]: ")
+                if confirmation == 'y':
+                    return xml_dir
+
+    is_valid, reason, installed_dir = check_path(installed_dir, path_contains=path_contains,
+                                                 sub_folder_includes=sub_folders)
+    if is_valid:
+        confirmation = wait_for_confirmation(f"Is this your BOTW {prompt_type} dir?\n{installed_dir}\n[Y/n]: ")
+        if confirmation == 'y':
+            return installed_dir
+    if base_dir == "0010":
+        base_dir = "content/0010"
+
+    return get_path(f"Directory of the Breath of the Wild {prompt_type} Dump (the /{base_dir} folder): ",
+                    required_phrases=path_contains, required_sub_files=sub_folders)
+
+
+def get_user_paths() -> Tuple[str, str, str, str]:
+    # Check for EmuDeck dirs
+    is_valid, reason, emudeck_cemu_dir = check_path(
+        "Z:/home/deck/Emulation/roms/wiiu", dir_includes=['Cemu.exe', 'settings.xml'])
+
+    if not is_valid:
+        is_valid, reason, emudeck_cemu_dir = check_path(
+            f"{get_sd_path()}/Emulation/roms/wiiu", dir_includes=['Cemu.exe', 'settings.xml'])
+
+    # Get the Cemu directory
+    if is_valid:
+        confirmation = wait_for_confirmation(f"Is this your Cemu directory? [Y/n]\n{emudeck_cemu_dir}\n: ")
+
+        cemu_dir = emudeck_cemu_dir if confirmation == 'y' \
+            else get_path("Directory to your Cemu Installation (where Cemu.exe is): ",
+                          required_files=['Cemu.exe', 'settings.xml'])
     else:
-        CEMU_DIR = getPath("Directory to your Cemu Installation (where Cemu.exe is): ", requiredFiles=['Cemu.exe','settings.xml'])
-    
+        cemu_dir = get_path(
+            "Directory to your Cemu Installation (where Cemu.exe is): ",
+            required_files=['Cemu.exe', 'settings.xml'])
 
-if CEMU_DIR[:-1] != '/' and CEMU_DIR[:-1] != '\\':
-    CEMU_DIR += '/'
+    if cemu_dir[-1] not in r'\/':
+        cemu_dir += '/'
 
-gameInXML = False
-updateInXML = False
-dlcInXML = False
-
-try:
-    # Load the XML file
-    tree = ET.parse(CEMU_DIR+'title_list_cache.xml')
-    root = tree.getroot()
+    root = None
+    title_list_cache_path = os.path.join(cemu_dir, 'title_list_cache.xml')
+    if os.path.exists(title_list_cache_path):
+        tree = ET.parse(title_list_cache_path)
+        root = tree.getroot()
 
     # Find the paths with a specific titleId
+    game_title_id = '00050000101c9400'
+    game_sub_folders = {'Layout': ['Horse.sblarc']}
+    installed_game_dir = os.path.join(cemu_dir, "mlc01/usr/title/0005000/101c9400/content")
+    game_dir = get_directory(root, installed_game_dir, game_title_id, 'content', game_sub_folders, None, "Game")
 
-    #game
-    title_id = '00050000101c9400'
-    for title in root.findall(f".//title[@titleId='{title_id}']"):
-        xml_GAME_DIR = normalise_path(title.find('path').text)
-        if '/content' not in xml_GAME_DIR:
-            xml_GAME_DIR += 'content/'
-        if (xml_GAME_DIR:=checkPath(xml_GAME_DIR, subFolderIncludes={'Layout':['Horse.sblarc']}))[0] == True:
-            GAME_DIR = normalise_path(xml_GAME_DIR[2])
-            while confirmation:=input(f"Is this your BotW Game directory? [Y/n]\n{GAME_DIR[2]}\n: ") not in ['Y','y','N','n']:
-                pass
+    # Find the paths for update
+    update_title_id = '0005000e101c9400'
+    update_sub_folders = {'Actor/Pack': ['ActorObserverByActorTagTag.sbactorpack']}
+    installed_update_dir = os.path.join(cemu_dir, "mlc01/usr/title/0005000e/101c9400/content")
+    update_dir = get_directory(root, installed_update_dir, update_title_id, 'content', update_sub_folders,
+                               None, "Update")
 
-            if confirmation in ['Y','y']:
-                gameInXML = True
-            
+    # Find the paths for dlc
+    dlc_title_id = '0005000c101c9400'
+    dlc_sub_folders = {'Movie': ['Demo655_0.mp4']}
+    installed_dlc_dir = os.path.join(cemu_dir, "mlc01/usr/title/0005000c/101c9400/content/0010")
+    dlc_dir = get_directory(root, installed_dlc_dir, dlc_title_id, 'content/0010', dlc_sub_folders, None, "DLC")
 
-    #update
-    title_id = '0005000e101c9400'
-    for title in root.findall(f".//title[@titleId='{title_id}']"):
-        xml_UPDATE_DIR = normalise_path(title.find('path').text)
-        if '/content' not in xml_UPDATE_DIR:
-            xml_UPDATE_DIR += 'content/'
-        if (xml_UPDATE_DIR:=checkPath(xml_UPDATE_DIR, pathContains=['usr','title'],subFolderIncludes={'Actor/Pack':['ActorObserverByActorTagTag.sbactorpack']}))[0] == True:
-            UPDATE_DIR = normalise_path(xml_UPDATE_DIR[2])
-            while confirmation:=input(f"Is this your BotW Update directory? [Y/n]\n{UPDATE_DIR[2]}\n: ") not in ['Y','y','N','n']:
-                pass
+    # !!!IMPORTANT!!! the tests I used to check each directory may not work for everyone. This is based upon my files and
+    # my files may be messed up who knows. Double check these with your files to see if the tests work for you too :)
+    return cemu_dir, game_dir, update_dir, dlc_dir
 
-            if confirmation in ['Y','y']:
-                updateInXML = True
-
-    #dlc
-    title_id = '0005000c101c9400'
-    for title in root.findall(f".//title[@titleId='{title_id}']"):
-        xml_DLC_DIR = normalise_path(title.find('path').text)
-        if '/content/0010' not in xml_DLC_DIR:
-            xml_DLC_DIR += 'content/0010/'
-        if (xml_DLC_DIR:=checkPath(xml_DLC_DIR, pathContains=['usr','title'],subFolderIncludes={'Movie':['Demo655_0.mp4']}))[0] == True:
-            DLC_DIR = normalise_path(xml_DLC_DIR[2])
-            while confirmation:=input(f"Is this your BotW DLC directory? [Y/n]\n{GAME_DIR[2]}\n: ") not in ['Y','y','N','n']:
-                pass
-
-            if confirmation in ['Y','y']:
-                dlcInXML = True
-        
-except:
-    print("No title_list_cache.xml found (this is perfectly fine)...")
-
-#get the game directory if not in xml
-if gameInXML == False:
-    emudeck_GAME_DIR = checkPath("/home/deck/Emulation/roms/wii/mlc01/usr/title/0005000/101c9400/content", subFolderIncludes={'Layout':['Horse.sblarc']})
-    if emudeck_GAME_DIR[0] == False:
-        GAME_DIR = getPath("Directory of the Breath of the Wild Game Dump (the /content folder): ", requiredSubFiles={'Layout':['Horse.sblarc']})
-    else:
-        while confirmation:=input(f"Is this your BotW Game directory? [Y/n]\n{emudeck_GAME_DIR[2]}\n: ") not in ['Y','y','N','n']:
-            pass
-
-        if confirmation in ['Y','y']:
-            GAME_DIR = emudeck_GAME_DIR[2]
-        else:
-            GAME_DIR = getPath("Directory of the Breath of the Wild Game Dump (the /content folder): ", requiredSubFiles={'Layout':['Horse.sblarc']})
-
-#get the update directory if not in xml
-if updateInXML == False:
-    emudeck_UPDATE_DIR = checkPath("/home/deck/Emulation/roms/wii/mlc01/usr/title/0005000e/101c9400/content", pathContains=['usr','title'],subFolderIncludes={'Actor/Pack':['ActorObserverByActorTagTag.sbactorpack']})
-    if emudeck_UPDATE_DIR[0] == False:
-        UPDATE_DIR = getPath("Directory of Breath of the Wild Update (the /content folder): ", requiredPhrases=['usr','title'],requiredSubFiles={'Actor/Pack':['ActorObserverByActorTagTag.sbactorpack']})
-    else:
-        while confirmation:=input(f"Is this your BotW Update directory? [Y/n]\n{emudeck_GAME_DIR[2]}\n: ") not in ['Y','y','N','n']:
-            pass
-
-        if confirmation in ['Y','y']:
-            UPDATE_DIR = emudeck_UPDATE_DIR[2]
-        else:
-            UPDATE_DIR = getPath("Directory of Breath of the Wild Update (the /content folder): ", requiredPhrases=['usr','title'],requiredSubFiles={'Actor/Pack':['ActorObserverByActorTagTag.sbactorpack']})
-
-#get the dlc directory if not in xml
-if dlcInXML == False:
-    emudeck_DLC_DIR = checkPath("/home/deck/Emulation/roms/wii/mlc01/usr/title/0005000c/101c9400/content/0010", pathContains=['usr','title'],subFolderIncludes={'Movie':['Demo655_0.mp4']})
-    if emudeck_DLC_DIR[0] == False:
-        DLC_DIR = getPath("Directory of Breath of the Wild DLC (the /content/0010 folder): ", requiredPhrases=['usr','title'],requiredSubFiles={'Movie':['Demo655_0.mp4']})
-    else:
-        while confirmation:=input(f"Is this your BotW DLC directory? [Y/n]\n{emudeck_GAME_DIR[2]}\n: ") not in ['Y','y','N','n']:
-            pass
-
-        if confirmation in ['Y','y']:
-            DLC_DIR = emudeck_DLC_DIR[2]
-        else:
-            DLC_DIR = getPath("Directory of Breath of the Wild DLC (the /content/0010 folder): ", requiredPhrases=['usr','title'],requiredSubFiles={'Movie':['Demo655_0.mp4']})
-
-#!!!IMPORTANT!!! the tests I used to check each directory may not work for everyone. This is based upon my files and my files may be messed up who knows. Double check these with your files to see if the tests work for you too :)
 
 def download_mod_files():
     headers = CaseInsensitiveDict()
@@ -387,12 +261,12 @@ def download_mod_files():
         raise Exception("Error downloading mod files")
 
 
-def generate_graphics_packs():
+def generate_graphics_packs(game_dir: str, update_dir: str, dlc_dir: str):
     with open("settings_template.json", "r") as f:
         settings_json = json.load(f)
-    settings_json["game_dir"] = GAME_DIR
-    settings_json["dlc_dir"] = DLC_DIR
-    settings_json["update_dir"] = UPDATE_DIR
+    settings_json["game_dir"] = game_dir
+    settings_json["dlc_dir"] = update_dir
+    settings_json["update_dir"] = dlc_dir
     settings_json["store_dir"] = os.path.expanduser("~/.config/bcml")
     settings_json["export_dir"] = os.path.join(WORKING_DIR, "bcml_exports")
 
@@ -441,7 +315,8 @@ def generate_graphics_packs():
 
     # TODO enable the packs with settings.
 
-def main(cemu_path):
+
+def main(cemu_dir: str, game_dir: str, update_dir: str, dlc_dir: str):
     # Generate the working directory
     os.makedirs(WORKING_DIR, exist_ok=True)
 
@@ -450,28 +325,27 @@ def main(cemu_path):
 
     # Create a Steam shortcut for 'Breath of the Wild Multiplayer.exe'
     game_path = os.path.join(MOD_DIR, "Breath of the Wild Multiplayer.exe")
-    write_shortcuts(game_path, "Breath of the Wild Multiplayer", cemu_path)
+    write_shortcuts(game_path, "Breath of the Wild Multiplayer", cemu_dir)
 
     # Get the id for the Steam shortcut
-    shortcut_path = os.path.join(cemu_path, "Breath of the Wild Multiplayer.lnk")
+    shortcut_path = os.path.join(cemu_dir, "Breath of the Wild Multiplayer.lnk")
     with open(shortcut_path, "r") as f:
         contents = f.read()
         id = contents.split("steamid=")[1].split("&")[0]
-
 
     # TODO install protontricks if not installed already?
     # Run protontricks to install dotnetcoredesktop6
     os.system(f"protontricks {id} install dotnetcoredesktop6")
 
     # Generate the graphics packs from the mod files
-    generate_graphics_packs()
+    generate_graphics_packs(game_dir, update_dir, dlc_dir)
 
     # Place the graphics packs files into the appropriate directories in Cemu
-    graphics_packs_dir = os.path.join(cemu_path, "graphicPacks")
+    graphics_packs_dir = os.path.join(cemu_dir, "graphicPacks")
     # TODO: add code to place the graphics packs files into the appropriate directories
 
     # Add the relevant entries to the settings.xml file
-    settings_path = os.path.join(cemu_path, "settings.xml")
+    settings_path = os.path.join(cemu_dir, "settings.xml")
     tree = ET.parse(settings_path)
     root = tree.getroot()
 
@@ -487,7 +361,7 @@ def main(cemu_path):
 
     tree.write(settings_path)
 
-if __name__ == "__main__":
-    cemu_path = CEMU_DIR
-    main(cemu_path)
 
+if __name__ == "__main__":
+    cemu_dir, game_dir, update_dir, dlc_dir = get_user_paths()
+    main(cemu_dir, game_dir, update_dir, dlc_dir)
