@@ -234,8 +234,11 @@ def download_mod_files():
     headers = CaseInsensitiveDict()
     r = requests.get(DOWNLOAD_URL, headers=headers)
     pretty = json.dumps(r.json(), indent=4)
+
     r_json = r.json()
     if len(r_json) == 0:
+        raise Exception("Error downloading mod files")
+    if "message" in r_json and "rate limit" in r_json["message"]:
         raise Exception("Error downloading mod files")
     latest_release = r_json[0]
     download_link = latest_release["assets"][0]["browser_download_url"]
@@ -263,8 +266,8 @@ def generate_graphics_packs(game_dir: str, update_dir: str, dlc_dir: str):
     with open("settings_template.json", "r") as f:
         settings_json = json.load(f)
     settings_json["game_dir"] = game_dir
-    settings_json["dlc_dir"] = update_dir
-    settings_json["update_dir"] = dlc_dir
+    settings_json["dlc_dir"] = dlc_dir
+    settings_json["update_dir"] = update_dir
     settings_json["store_dir"] = os.path.expanduser("~/.config/bcml")
     settings_json["export_dir"] = os.path.join(WORKING_DIR, "bcml_exports")
 
