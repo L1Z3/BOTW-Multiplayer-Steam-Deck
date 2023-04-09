@@ -9,6 +9,7 @@ import shutil
 import uuid
 import vdf
 import zipfile
+import io
 
 from _crc_algorithms import Crc
 from bcml.install import export, install_mod, refresh_merges
@@ -23,6 +24,8 @@ DOWNLOAD_URL = "https://api.github.com/repos/edgarcantuco/BOTW.Release/releases"
 WORKING_DIR = os.path.expanduser("~/.local/share/botwminstaller")
 MOD_DIR = os.path.join(WORKING_DIR, "BreathOfTheWildMultiplayer")
 STEAM_DIR = os.path.expanduser("~/.steam/steam")
+
+CEMU_URL = 'https://cemu.info/releases/cemu_1.27.1.zip'  # where to download the Cemu zip from
 
 
 def normalize_path(path: str) -> str:
@@ -97,7 +100,6 @@ def check_path(path: str, **kwargs) -> Tuple[bool, Optional[str], str]:
 def get_path(input_message: str, **kwargs) -> str:
     """
     Prompt the user to input a file path and validate it based on specified requirements.
-
     :param input_message: The text shown to ask the user for the path.
     :param kwargs:
         - required_phrases (list): A list of substrings that are required to be in the file path.
@@ -125,7 +127,7 @@ def get_path(input_message: str, **kwargs) -> str:
             print(f"Invalid Path: {reason}")
 
 
-def get_sd_path():
+def get_sd_path() -> Optional[str]:
     """
     Get the path to the SD card
     """
@@ -134,10 +136,10 @@ def get_sd_path():
     return None
 
 
-def wait_for_confirmation(prompt: str) -> str:
+def wait_for_confirmation(prompt: str) -> bool:
     while (confirmation := str(input(prompt)).lower()) not in ['y', 'n']:
         pass
-    return confirmation
+    return True if confirmation == 'y' else False
 
 
 def get_directory(xml_root: Optional[ET.Element],
@@ -150,7 +152,6 @@ def get_directory(xml_root: Optional[ET.Element],
     """
     Get the directory for the specified type (game, update, or DLC) of Breath of the Wild.
     The function checks the XML file, the default installed directory, and prompts the user if needed.
-
     :param xml_root: The root element of the parsed XML file (None if XML file does not exist).
     :param installed_dir: The default path of the installed directory to check.
     :param title_id: The title ID to search for in the XML file.
@@ -158,7 +159,6 @@ def get_directory(xml_root: Optional[ET.Element],
     :param sub_folders: A dictionary of required sub-folders and their files to validate the directory.
     :param path_contains: A list of substrings that are required to be in the file path (optional).
     :param prompt_type: The type of directory being searched for (e.g., "Game", "Update", "DLC").
-
     :return: The valid file path entered by the user or found in the XML or default directory.
     """
     if xml_root is not None:
@@ -170,43 +170,96 @@ def get_directory(xml_root: Optional[ET.Element],
                                                    sub_folder_includes=sub_folders)
             if is_valid:
                 confirmation = wait_for_confirmation(f"Is this your BOTW {prompt_type} dir?\n{xml_dir}\n[Y/n]: ")
-                if confirmation == 'y':
+                if confirmation:
                     return xml_dir
 
     is_valid, reason, installed_dir = check_path(installed_dir, path_contains=path_contains,
                                                  sub_folder_includes=sub_folders)
     if is_valid:
         confirmation = wait_for_confirmation(f"Is this your BOTW {prompt_type} dir?\n{installed_dir}\n[Y/n]: ")
-        if confirmation == 'y':
+        if confirmation:
             return installed_dir
 
     return get_path(f"Directory of the Breath of the Wild {prompt_type} Dump (the /{base_dir} folder): ",
                     required_phrases=path_contains, required_sub_files=sub_folders)
 
 
-def get_user_paths() -> Tuple[str, str, str, str]:
+def scan_for_cemu() -> Optional[str]:
+    confirmation = wait_for_confirmation(f"Do you want to automatically look for a Cemu installation? "
+                                         f"This will scan your home directory for Cemu.exe and may take a while. [Y/n]: ")
+    if confirmation:
+        for root, dirs, files in os.walk(os.path.expanduser('~/')):
+            for filename in files:
+                if filename == 'Cemu.exe':
+                    return root
+        return None
+    return None
+
+
+def download_cemu() -> Optional[str]:
+    confirmation = wait_for_confirmation(f"Do you want to download Cemu now? [Y/n]: ")
+    if confirmation:
+        try:
+            z = zipfile.ZipFile(io.BytesIO(requests.get(CEMU_URL).content))
+            wiiu_dir = os.path.expanduser('~/Emulation/roms/wiiu/')
+            os.makedirs(wiiu_dir, exist_ok=True)
+            z.extractall(wiiu_dir)
+            zipinfo = z.infolist()
+            cemu_subdir = os.path.join(wiiu_dir, zipinfo[0].filename)
+            for item in os.listdir(cemu_subdir):
+                item_path = os.path.join(cemu_subdir, item)
+                if os.path.isdir(item_path):
+                    shutil.copytree(item_path, os.path.join(wiiu_dir, item))
+                else:
+                    shutil.copy2(item_path, wiiu_dir)
+            shutil.rmtree(cemu_subdir)
+            return wiiu_dir
+        except ValueError:
+            Exception(
+                "ERROR: The information inside of the Cemu download was not what was expected! Please contact the developers of this application!")
+        except:
+            print(
+                "Something went wrong with the download, please download manually or select a previous installation in the next step!")
+    return None
+
+
+def get_cemu_dir() -> str:
     # Check for EmuDeck dirs
     is_valid, reason, emudeck_cemu_dir = check_path(
-        "Z:/home/deck/Emulation/roms/wiiu", dir_includes=['Cemu.exe', 'settings.xml'])
+        os.path.expanduser("~/Emulation/roms/wiiu"), dir_includes=['Cemu.exe', 'settings.xml'])
 
     if not is_valid:
-        is_valid, reason, emudeck_cemu_dir = check_path(
-            f"{get_sd_path()}/Emulation/roms/wiiu", dir_includes=['Cemu.exe', 'settings.xml'])
+        sd_path = get_sd_path()
+        if sd_path is not None:
+            is_valid, reason, emudeck_cemu_dir = check_path(
+                f"{sd_path}/Emulation/roms/wiiu", dir_includes=['Cemu.exe', 'settings.xml'])
+    cemu_dir = None
 
-    # Get the Cemu directory
     if is_valid:
-        confirmation = wait_for_confirmation(f"Is this your Cemu directory? [Y/n]\n{emudeck_cemu_dir}\n: ")
+        confirmation = wait_for_confirmation(f"Is this your Cemu directory? \n{emudeck_cemu_dir}\n[Y/n]: ")
+        if confirmation:
+            cemu_dir = emudeck_cemu_dir
+    if cemu_dir is None:
+        print("Could not automatically detect a Cemu installation. "
+              "You will have the option to scan for Cemu, download Cemu, or manually select a Cemu exe.")
+        got_by_scan = scan_for_cemu()
+        if got_by_scan:
+            cemu_dir = got_by_scan
+            print(f"Successfully found Cemu at {cemu_dir}!")
+    if cemu_dir is None:
+        downloaded = download_cemu()
+        if downloaded:
+            cemu_dir = downloaded
+            print(f"Successfully downloaded Cemu to {cemu_dir}!")
+    if cemu_dir is None:
+        cemu_dir = get_path("Directory to your Cemu Installation (where Cemu.exe is): ",
+                            required_files=['Cemu.exe', 'settings.xml'])
 
-        cemu_dir = emudeck_cemu_dir if confirmation == 'y' \
-            else get_path("Directory to your Cemu Installation (where Cemu.exe is): ",
-                          required_files=['Cemu.exe', 'settings.xml'])
-    else:
-        cemu_dir = get_path(
-            "Directory to your Cemu Installation (where Cemu.exe is): ",
-            required_files=['Cemu.exe', 'settings.xml'])
+    return cemu_dir
 
-    if cemu_dir[-1] not in r'\/':
-        cemu_dir += '/'
+
+def get_user_paths() -> Tuple[str, str, str, str]:
+    cemu_dir = get_cemu_dir()
 
     root = None
     title_list_cache_path = os.path.join(cemu_dir, 'title_list_cache.xml')
@@ -325,7 +378,7 @@ def generate_graphics_packs(game_dir: str, update_dir: str, dlc_dir: str):
     # TODO enable the packs with settings.
 
 
-def shortcut_app_id(shortcut):
+def shortcut_app_id(shortcut: Shortcut) -> str:
     """
     Generates the app id for a given shortcut. Steam uses app ids as a unique
     identifier for games, but since shortcuts don't have a canonical serverside
@@ -340,7 +393,7 @@ def shortcut_app_id(shortcut):
     return str(full_64)
 
 
-def generate_steam_shortcut():
+def generate_steam_shortcut() -> int:
     # Get the existing user ids
     user_data_folder = os.path.join(STEAM_DIR, "userdata")
     user_ids = os.listdir(user_data_folder)
@@ -438,6 +491,7 @@ def main():
 
     # Place the graphics packs in cemu & verify they're in the settings.xml
     # update_graphics_packs(cemu_dir)
+
 
 if __name__ == "__main__":
     main()
