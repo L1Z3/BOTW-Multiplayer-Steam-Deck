@@ -22,7 +22,7 @@ Shortcut = collections.namedtuple('Shortcut', ['name', 'exe', 'startdir', 'icon'
 DOWNLOAD_URL = "https://api.github.com/repos/edgarcantuco/BOTW.Release/releases"
 WORKING_DIR = os.path.expanduser("~/.local/share/botwminstaller")
 MOD_DIR = os.path.join(WORKING_DIR, "BreathOfTheWildMultiplayer")
-STEAM_DIR = os.path.join("~/.steam/steam")
+STEAM_DIR = os.path.expanduser("~/.steam/steam")
 
 
 def normalize_path(path: str) -> str:
@@ -324,34 +324,37 @@ def generate_graphics_packs(game_dir: str, update_dir: str, dlc_dir: str):
 
     # TODO enable the packs with settings.
 
+
 def shortcut_app_id(shortcut):
     """
     Generates the app id for a given shortcut. Steam uses app ids as a unique
-    identifier for games, but since shortcuts dont have a canonical serverside
+    identifier for games, but since shortcuts don't have a canonical serverside
     representation they need to be generated on the fly. The important part
     about this function is that it will generate the same app id as Steam does
     for a given shortcut
     """
-    algorithm = Crc(width = 32, poly = 0x04C11DB7, reflect_in = True, xor_in = 0xffffffff, reflect_out = True, xor_out = 0xffffffff)
-    crc_input = ''.join([shortcut.exe,shortcut.name])
+    algorithm = Crc(width=32, poly=0x04C11DB7, reflect_in=True, xor_in=0xffffffff, reflect_out=True, xor_out=0xffffffff)
+    crc_input = ''.join([shortcut.exe, shortcut.name])
     high_32 = algorithm.bit_by_bit(crc_input) | 0x80000000
     full_64 = (high_32 << 32) | 0x02000000
     return str(full_64)
 
+
 def generate_steam_shortcut():
     # Get the existing user ids
-    userDataFolder = os.path.expanduser(STEAM_DIR + "/userdata/")
-    userIds = os.listdir(userDataFolder)
+    user_data_folder = os.path.join(STEAM_DIR, "userdata")
+    user_ids = os.listdir(user_data_folder)
 
+    # TODO get user name from user id
     # Prompt user to pick the user id
     print("User IDs:")
-    for i, user_id in enumerate(userIds):
+    for i, user_id in enumerate(user_ids):
         print(f"{i + 1}. {user_id}")
 
     selected_index = int(input("Enter the number of the user ID you want to use: ")) - 1
-    user_id = userIds[selected_index]
+    user_id = user_ids[selected_index]
 
-    shortcuts_path = os.path.expanduser(STEAM_DIR + f"/userdata/{user_id}/config/shortcuts.vdf")
+    shortcuts_path = os.path.join(STEAM_DIR, f"userdata/{user_id}/config/shortcuts.vdf")
     if not os.path.exists(shortcuts_path):
         with open(shortcuts_path, "wb") as f:
             vdf.binary_dump({"shortcuts": {}}, f)
@@ -360,14 +363,14 @@ def generate_steam_shortcut():
         shortcuts = vdf.binary_load(f)
 
     # Back up vdf
-    shortcuts_backup_path = os.path.expanduser(STEAM_DIR + f"/userdata/{user_id}/config/shortcuts.vdf.bak")
+    shortcuts_backup_path = os.path.join(STEAM_DIR, f"userdata/{user_id}/config/shortcuts.vdf.bak")
     with open(shortcuts_backup_path, "wb") as f:
         vdf.binary_dump(shortcuts, f)
 
     # Check to see if there is an entry with the name "Breath of the Wild Multiplayer Mod"
     app_id = None
     for shortcut in shortcuts.get("shortcuts", {}).values():
-        if shortcut["AppName"] == "Breath of the Wild Multiplayer Mod":
+        if "AppName" in shortcut and shortcut["AppName"] == "Breath of the Wild Multiplayer Mod":
             app_id = shortcut_app_id(Shortcut(shortcut["AppName"], shortcut["exe"], shortcut["StartDir"], "", []))
             break
 
@@ -391,7 +394,8 @@ def generate_steam_shortcut():
 
     return int(app_id)
 
-def update_graphics_packs():
+
+def update_graphics_packs(cemu_path: str):
     # Add the relevant entries to the settings.xml file
     settings_path = os.path.join(cemu_path, "settings.xml")
     tree = ET.parse(settings_path)
@@ -423,7 +427,6 @@ def main():
     # Generate the working directory
     os.makedirs(WORKING_DIR, exist_ok=True)
 
-
     # Download the latest mod files
     download_mod_files()
 
@@ -434,7 +437,7 @@ def main():
     generate_graphics_packs(game_dir, update_dir, dlc_dir)
 
     # Place the graphics packs in cemu & verify they're in the settings.xml
-    # update_graphics_packs()
+    # update_graphics_packs(cemu_dir)
 
 if __name__ == "__main__":
     main()
