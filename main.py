@@ -25,8 +25,7 @@ WORKING_DIR = os.path.expanduser("~/.local/share/botwminstaller")
 MOD_DIR = os.path.join(WORKING_DIR, "BreathOfTheWildMultiplayer")
 STEAM_DIR = os.path.expanduser("~/.steam/steam")
 
-CEMU_URL = 'https://cemu.info/releases/cemu_1.27.1.zip' #where to download the Cemu zip from
-
+CEMU_URL = 'https://cemu.info/releases/cemu_1.27.1.zip'  # where to download the Cemu zip from
 
 
 def normalize_path(path: str) -> str:
@@ -128,7 +127,7 @@ def get_path(input_message: str, **kwargs) -> str:
             print(f"Invalid Path: {reason}")
 
 
-def get_sd_path():
+def get_sd_path() -> Optional[str]:
     """
     Get the path to the SD card
     """
@@ -185,7 +184,7 @@ def get_directory(xml_root: Optional[ET.Element],
                     required_phrases=path_contains, required_sub_files=sub_folders)
 
 
-def scan_for_cemu():
+def scan_for_cemu() -> Optional[str]:
     confirmation = wait_for_confirmation(f"Do you want to automatically look for a Cemu installation? "
                                          f"This will scan your home directory for Cemu.exe and may take a while. [Y/n]: ")
     if confirmation:
@@ -193,8 +192,8 @@ def scan_for_cemu():
             for filename in files:
                 if filename == 'Cemu.exe':
                     return root
-        return False
-    return False
+        return None
+    return None
 
 
 def download_cemu() -> Optional[str]:
@@ -216,12 +215,15 @@ def download_cemu() -> Optional[str]:
             shutil.rmtree(cemu_subdir)
             return wiiu_dir
         except ValueError:
-            Exception("ERROR: The information inside of the Cemu download was not what was expected! Please contact the developers of this application!")
+            Exception(
+                "ERROR: The information inside of the Cemu download was not what was expected! Please contact the developers of this application!")
         except:
-            print("Something went wrong with the download, please download manually or select a previous installation in the next step!")
+            print(
+                "Something went wrong with the download, please download manually or select a previous installation in the next step!")
     return None
 
-def get_cemu_dir():
+
+def get_cemu_dir() -> str:
     # Check for EmuDeck dirs
     is_valid, reason, emudeck_cemu_dir = check_path(
         os.path.expanduser("~/Emulation/roms/wiiu"), dir_includes=['Cemu.exe', 'settings.xml'])
@@ -376,7 +378,7 @@ def generate_graphics_packs(game_dir: str, update_dir: str, dlc_dir: str):
     # TODO enable the packs with settings.
 
 
-def shortcut_app_id(shortcut):
+def shortcut_app_id(shortcut: Shortcut) -> str:
     """
     Generates the app id for a given shortcut. Steam uses app ids as a unique
     identifier for games, but since shortcuts don't have a canonical serverside
@@ -391,7 +393,7 @@ def shortcut_app_id(shortcut):
     return str(full_64)
 
 
-def generate_steam_shortcut():
+def generate_steam_shortcut() -> int:
     # Get the existing user ids
     user_data_folder = os.path.join(STEAM_DIR, "userdata")
     user_ids = os.listdir(user_data_folder)
@@ -489,6 +491,7 @@ def main():
 
     # Place the graphics packs in cemu & verify they're in the settings.xml
     # update_graphics_packs(cemu_dir)
+
 
 if __name__ == "__main__":
     main()
