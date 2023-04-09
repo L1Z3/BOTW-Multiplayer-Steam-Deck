@@ -235,27 +235,56 @@ def get_sd_path():
         return os.popen("findmnt -n --raw --evaluate --output=target -S /dev/mmcblk0p1").read().strip()
     return None
 
-#check for EmuDeck dirs
-emudeck_CEMU_DIR = checkPath("Z:/home/deck/Emulation/roms/wiiu", dirIncludes=['Cemu.exe','settings.xml'])
+cemuUrl = 'https://cemu.info/releases/cemu_1.27.1.zip'
+cemuFolderName = 'cemu_1.27.1/'
+cemuInstalled = False
 
-if emudeck_CEMU_DIR[0] == False:
-    emudeck_CEMU_DIR = checkPath(f"{get_sd_path()}/Emulation/roms/wiiu", dirIncludes=['Cemu.exe','settings.xml'])
+while (confirm:=input("Do you want to download Cemu now? (Do not if you already have it installed) [Y/n]: ")) not in ['Y','y','N','n']:
+  pass
 
-#get the Cemu directory
-if emudeck_CEMU_DIR[0] == False:
-    CEMU_DIR = getPath("Directory to your Cemu Installation (where Cemu.exe is): ", requiredFiles=['Cemu.exe','settings.xml'])
-else:
-    while confirmation:=input(f"Is this your Cemu directory? [Y/n]\n{emudeck_CEMU_DIR[2]}\n: ") not in ['Y','y','N','n']:
-        pass
-    
-    if confirmation in ['Y','y']:
-        CEMU_DIR = emudeck_CEMU_DIR[2]
+if confirm in ['Y','y']:
+  
+  try:
+    r = requests.get(cemuUrl)
+    z = zipfile.ZipFile(io.BytesIO(r.content))
+
+    CEMU_DIR = os.path.expanduser('~/wiiu/')
+    os.makedirs(CEMU_DIR)
+    z.extractall(CEMU_DIR)
+    CEMU_DIR += '/'+cemuFolderName
+    cemuInstalled = True
+  except Exception as e:
+    print(e)
+    print('If you recieved an error, it probably means you have already installed Cemu, or have a {user}/wiiu/ folder.\nCemu is required for this installation so please either fix this error, or download any Cemu release 1.26+ manually.')
+    while (confirm:=input("Would you like to proceed? (Cemu will not be installed by this script) [Y/n]: ")) not in ['Y','y','N','n']:
+      pass
+    if confirm in ['Y','y']:
+      pass
     else:
-        CEMU_DIR = getPath("Directory to your Cemu Installation (where Cemu.exe is): ", requiredFiles=['Cemu.exe','settings.xml'])
-    
+      exit()
 
-if CEMU_DIR[:-1] != '/' and CEMU_DIR[:-1] != '\\':
-    CEMU_DIR += '/'
+#check for EmuDeck dirs or ask for Cemu Directory
+if cemuInstalled == False:
+    emudeck_CEMU_DIR = checkPath("Z:/home/deck/Emulation/roms/wiiu", dirIncludes=['Cemu.exe','settings.xml'])
+
+    if emudeck_CEMU_DIR[0] == False:
+        emudeck_CEMU_DIR = checkPath(f"{get_sd_path()}/Emulation/roms/wiiu", dirIncludes=['Cemu.exe','settings.xml'])
+
+    #get the Cemu directory
+    if emudeck_CEMU_DIR[0] == False:
+        CEMU_DIR = getPath("Directory to your Cemu Installation (where Cemu.exe is): ", requiredFiles=['Cemu.exe','settings.xml'])
+    else:
+        while confirmation:=input(f"Is this your Cemu directory? [Y/n]\n{emudeck_CEMU_DIR[2]}\n: ") not in ['Y','y','N','n']:
+            pass
+        
+        if confirmation in ['Y','y']:
+            CEMU_DIR = emudeck_CEMU_DIR[2]
+        else:
+            CEMU_DIR = getPath("Directory to your Cemu Installation (where Cemu.exe is): ", requiredFiles=['Cemu.exe','settings.xml'])
+        
+    
+    if CEMU_DIR[:-1] != '/' and CEMU_DIR[:-1] != '\\':
+        CEMU_DIR += '/'
 
 gameInXML = False
 updateInXML = False
