@@ -188,10 +188,15 @@ def scan_for_cemu() -> Optional[str]:
     confirmation = wait_for_confirmation(f"Do you want to automatically look for a Cemu installation? "
                                          f"This will scan your home directory for Cemu.exe and may take a while. [Y/n]: ")
     if confirmation:
-        for root, dirs, files in os.walk(os.path.expanduser('~/')):
-            for filename in files:
-                if filename == 'Cemu.exe':
-                    return root
+        try:
+            print("Press ctrl+C at any time to end the scan.")
+            for root, dirs, files in os.walk(os.path.expanduser('~/')):
+                for filename in files:
+                    if filename == 'Cemu.exe':
+                        return root
+        except KeyboardInterrupt:
+            print("Scan aborted.")
+            return None
         return None
     return None
 
