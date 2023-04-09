@@ -1,16 +1,18 @@
+#!/usr/bin/python
+
+import json
 import os
+import py7zr
+import requests
 import shutil
-from pysteam.shortcuts import write_shortcuts
+import uuid
+import zipfile
+
+from bcml.install import export, install_mod, refresh_merges
+from pathlib import Path
+from requests.structures import CaseInsensitiveDict
 from typing import Optional, Tuple, Dict, List
 from xml.etree import ElementTree as ET
-import requests
-from requests.structures import CaseInsensitiveDict
-import zipfile
-from pathlib import Path
-import uuid
-import json
-from bcml.install import export, install_mod, refresh_merges
-import py7zr
 
 DOWNLOAD_URL = "https://api.github.com/repos/edgarcantuco/BOTW.Release/releases"
 WORKING_DIR = os.path.expanduser("~/.local/share/botwminstaller")
@@ -54,7 +56,7 @@ def check_path(path: str, **kwargs) -> Tuple[bool, Optional[str], str]:
     path_contains: list = kwargs.get('path_contains')
     dir_includes: list = kwargs.get('dir_includes')
     sub_folder_includes: dict = kwargs.get('sub_folder_includes')
-    path = normalize_path(path)
+    path = os.path.expanduser(normalize_path(path))
 
     if path_contains is not None:
         for phrase in path_contains:
@@ -265,8 +267,8 @@ def generate_graphics_packs(game_dir: str, update_dir: str, dlc_dir: str):
     with open("settings_template.json", "r") as f:
         settings_json = json.load(f)
     settings_json["game_dir"] = game_dir
-    settings_json["dlc_dir"] = update_dir
-    settings_json["update_dir"] = dlc_dir
+    settings_json["dlc_dir"] = dlc_dir
+    settings_json["update_dir"] = update_dir
     settings_json["store_dir"] = os.path.expanduser("~/.config/bcml")
     settings_json["export_dir"] = os.path.join(WORKING_DIR, "bcml_exports")
 
@@ -316,52 +318,16 @@ def generate_graphics_packs(game_dir: str, update_dir: str, dlc_dir: str):
     # TODO enable the packs with settings.
 
 
-def main(cemu_dir: str, game_dir: str, update_dir: str, dlc_dir: str):
+def main():
+    cemu_dir, game_dir, update_dir, dlc_dir = get_user_paths()
     # Generate the working directory
     os.makedirs(WORKING_DIR, exist_ok=True)
 
     # Download the latest mod files
     download_mod_files()
 
-    # Create a Steam shortcut for 'Breath of the Wild Multiplayer.exe'
-    game_path = os.path.join(MOD_DIR, "Breath of the Wild Multiplayer.exe")
-    write_shortcuts(game_path, "Breath of the Wild Multiplayer", cemu_dir)
-
-    # Get the id for the Steam shortcut
-    shortcut_path = os.path.join(cemu_dir, "Breath of the Wild Multiplayer.lnk")
-    with open(shortcut_path, "r") as f:
-        contents = f.read()
-        id = contents.split("steamid=")[1].split("&")[0]
-
-    # TODO install protontricks if not installed already?
-    # Run protontricks to install dotnetcoredesktop6
-    os.system(f"protontricks {id} install dotnetcoredesktop6")
-
     # Generate the graphics packs from the mod files
     generate_graphics_packs(game_dir, update_dir, dlc_dir)
 
-    # Place the graphics packs files into the appropriate directories in Cemu
-    graphics_packs_dir = os.path.join(cemu_dir, "graphicPacks")
-    # TODO: add code to place the graphics packs files into the appropriate directories
-
-    # Add the relevant entries to the settings.xml file
-    settings_path = os.path.join(cemu_dir, "settings.xml")
-    tree = ET.parse(settings_path)
-    root = tree.getroot()
-
-    graphic_pack_entries = [
-        {"filename": "graphicPacks/BreathOfTheWild_BCML/rules.txt"},
-        {"filename": "graphicPacks/bcmlPatches/BreathoftheWildMultiplayer/rules.txt"}
-    ]
-
-    graphic_pack_element = root.find("GraphicPack")
-    for entry in graphic_pack_entries:
-        entry_element = ET.SubElement(graphic_pack_element, "Entry", entry)
-        graphic_pack_element.append(entry_element)
-
-    tree.write(settings_path)
-
-
 if __name__ == "__main__":
-    cemu_dir, game_dir, update_dir, dlc_dir = get_user_paths()
-    main(cemu_dir, game_dir, update_dir, dlc_dir)
+    main()
