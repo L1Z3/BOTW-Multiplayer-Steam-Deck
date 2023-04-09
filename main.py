@@ -357,6 +357,11 @@ def generate_steam_shortcut():
     with open(shortcuts_path, "rb") as f:
         shortcuts = vdf.binary_load(f)
 
+    # Back up vdf
+    shortcuts_backup_path = os.path.expanduser(STEAM_DIR + f"/userdata/{user_id}/config/shortcuts.vdf.bak")
+    with open(shortcuts_backup_path, "wb") as f:
+        vdf.binary_dump(shortcuts, f)
+
     # Check to see if there is an entry with the name "Breath of the Wild Multiplayer Mod"
     app_id = None
     for shortcut in shortcuts.get("shortcuts", {}).values():
@@ -430,7 +435,7 @@ def main():
     graphics_packs_dir = os.path.join(cemu_path, "graphicPacks")
     # TODO: add code to place the graphics packs files into the appropriate directories
 
-    #update_graphics_packs()
+    # update_graphics_packs()
 
 if __name__ == "__main__":
     main()
