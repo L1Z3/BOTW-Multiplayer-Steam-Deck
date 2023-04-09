@@ -171,8 +171,6 @@ def get_directory(xml_root: Optional[ET.Element],
         confirmation = wait_for_confirmation(f"Is this your BOTW {prompt_type} dir?\n{installed_dir}\n[Y/n]: ")
         if confirmation == 'y':
             return installed_dir
-    if base_dir == "0010":
-        base_dir = "content/0010"
 
     return get_path(f"Directory of the Breath of the Wild {prompt_type} Dump (the /{base_dir} folder): ",
                     required_phrases=path_contains, required_sub_files=sub_folders)
