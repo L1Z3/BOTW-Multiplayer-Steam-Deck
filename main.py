@@ -196,8 +196,6 @@ def scan_for_cemu() -> Optional[str]:
                         return root
         except KeyboardInterrupt:
             print("Scan aborted.")
-            return None
-        return None
     return None
 
 
