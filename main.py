@@ -1,5 +1,6 @@
 #!/usr/bin/python
 
+import collections
 import json
 import os
 import py7zr
@@ -21,6 +22,7 @@ Shortcut = collections.namedtuple('Shortcut', ['name', 'exe', 'startdir', 'icon'
 DOWNLOAD_URL = "https://api.github.com/repos/edgarcantuco/BOTW.Release/releases"
 WORKING_DIR = os.path.expanduser("~/.local/share/botwminstaller")
 MOD_DIR = os.path.join(WORKING_DIR, "BreathOfTheWildMultiplayer")
+STEAM_DIR = os.path.join("~/.steam/steam")
 
 
 def normalize_path(path: str) -> str:
@@ -431,10 +433,7 @@ def main():
     # Generate the graphics packs from the mod files
     generate_graphics_packs(game_dir, update_dir, dlc_dir)
 
-    # Place the graphics packs files into the appropriate directories in Cemu
-    graphics_packs_dir = os.path.join(cemu_path, "graphicPacks")
-    # TODO: add code to place the graphics packs files into the appropriate directories
-
+    # Place the graphics packs in cemu & verify they're in the settings.xml
     # update_graphics_packs()
 
 if __name__ == "__main__":
