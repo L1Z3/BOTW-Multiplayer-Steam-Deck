@@ -484,9 +484,11 @@ def generate_steam_shortcut() -> Tuple[int,int]:
     # If not, generate a shortcut with the name "Breath of the Wild Multiplayer Mod"
     if not shortcut_app_id:
         mod_exe = os.path.join(MOD_DIR, "Breath of the Wild Multiplayer.exe")
-        new_shortcut = Shortcut(shortcut_name, mod_exe, MOD_DIR, "", [])
+        shortcut_app_id = appids.generate_shortcut_id(mod_exe, shortcut_name)
+        prefix_app_id = appids.shortcut_id_to_short_app_id(shortcut_app_id)
+        icon = os.path.join(STEAM_DIR, f"userdata/{user_id}/config/grid/{prefix_app_id}_icon.png")
 
-        shortcut_app_id = appids.generate_shortcut_id(new_shortcut.exe, new_shortcut.name)
+        new_shortcut = Shortcut(shortcut_name, mod_exe, MOD_DIR, icon, [])
         next_index = max((int(key) for key in shortcuts.get("shortcuts", {}).keys()), default=0) + 1
         shortcuts["shortcuts"][str(next_index)] = \
         {
@@ -551,12 +553,15 @@ def update_graphics_packs(cemu_path: str):
 
     tree.write(settings_path)
 
+
 def add_grids(app_id: int, user_id: int):
     try:
         for file in os.listdir('./grids'):
-            shutil.copy(f"./grids/{file}",os.path.join(STEAM_DIR, f"/userdata/{user_id}/config/grid/{file.replace('BotWM', app_id)}"))
+            shutil.copy(f"./grids/{file}",
+                        os.path.join(STEAM_DIR, f"userdata/{user_id}/config/grid/{file.replace('BotWM', str(app_id))}"))
     except:
-        print(f"Could not write to your steam grids folder. If you want custom artwork for your shortcut, please add the files from {os.path.abspath('./grids/')} manually.")
+        print(f"Could not write to your steam grids folder. If you want custom artwork for your shortcut, please "
+              f"add the files from {os.path.abspath('./grids/')} manually.")
 
 
 def main():
