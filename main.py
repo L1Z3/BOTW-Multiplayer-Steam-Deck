@@ -7,12 +7,13 @@ import sys
 import py7zr
 import requests
 import shutil
+import time
 import uuid
 import vdf
 import zipfile
 import io
 
-from _crc_algorithms import Crc
+import _appids as appids
 from bcml.install import export, install_mod, refresh_merges
 from packaging import version
 from pathlib import Path
@@ -300,8 +301,8 @@ def get_mod_version() -> Optional[version.Version]:
     version_path = os.path.join(MOD_DIR, "Version.txt")
     if not os.path.exists(version_path):
         return None
-    with open(version_path, "r") as file:
-        version_str = file.read()
+    with open(version_path, "r") as version_file:
+        version_str = version_file.read()
         return version.parse(version_str)
 
 
@@ -344,20 +345,20 @@ def download_mod_files():
     zip_name = os.path.join(WORKING_DIR, uuid.uuid4().hex + ".zip")
 
     if r.status_code == 200:
-        with open(zip_name, 'wb') as file:
-            file.write(r.content)
+        with open(zip_name, 'wb') as zip_file:
+            zip_file.write(r.content)
 
         with zipfile.ZipFile(zip_name, 'r') as zip_ref:
             zip_ref.extractall(MOD_DIR)
 
-        file.close()
+        zip_file.close()
         zip_ref.close()
 
         os.remove(zip_name)
 
         # update version data
-        with open(os.path.join(MOD_DIR, "Version.txt"), "w") as f:
-            f.write(str(latest_version))
+        with open(os.path.join(MOD_DIR, "Version.txt"), "w") as version_file:
+            version_file.write(str(latest_version))
     else:
         print("Error downloading mod files!", file=sys.stderr)
         if cur_version is None:
@@ -367,17 +368,16 @@ def download_mod_files():
         return
 
 
-
 def generate_graphics_packs(game_dir: str, update_dir: str, dlc_dir: str):
-    with open("settings_template.json", "r") as f:
-        settings_json = json.load(f)
+    with open("settings_template.json", "r") as template_file:
+        settings_json = json.load(template_file)
     settings_json["game_dir"] = game_dir
     settings_json["dlc_dir"] = dlc_dir
     settings_json["update_dir"] = update_dir
     settings_json["store_dir"] = os.path.expanduser("~/.config/bcml")
     settings_json["export_dir"] = os.path.join(WORKING_DIR, "bcml_exports")
 
-    temp_bcml_dir = os.path.expanduser('~/.config/bcml_temp')
+    temp_bcml_dir = os.path.expanduser(f'~/.config/bcml_temp_{int(time.time())}')
     bcml_dir = os.path.expanduser('~/.config/bcml')
 
     if os.path.exists(temp_bcml_dir):
@@ -388,8 +388,8 @@ def generate_graphics_packs(game_dir: str, update_dir: str, dlc_dir: str):
 
     os.makedirs(bcml_dir)
 
-    with open(os.path.join(bcml_dir, 'settings.json'), 'w') as f:
-        json.dump(settings_json, f, indent=4)
+    with open(os.path.join(bcml_dir, 'settings.json'), 'w') as settings_file:
+        json.dump(settings_json, settings_file, indent=4)
 
     install_mod(Path(MOD_DIR) / "BNPs" / "BreathoftheWildMultiplayer.bnp")
     refresh_merges()
@@ -423,25 +423,33 @@ def generate_graphics_packs(game_dir: str, update_dir: str, dlc_dir: str):
     # TODO enable the packs with settings.
 
 
-def shortcut_app_id(shortcut: Shortcut) -> str:
-    """
-    Generates the app id for a given shortcut. Steam uses app ids as a unique
-    identifier for games, but since shortcuts don't have a canonical serverside
-    representation they need to be generated on the fly. The important part
-    about this function is that it will generate the same app id as Steam does
-    for a given shortcut
-    """
-    algorithm = Crc(width=32, poly=0x04C11DB7, reflect_in=True, xor_in=0xffffffff, reflect_out=True, xor_out=0xffffffff)
-    crc_input = ''.join([shortcut.exe, shortcut.name])
-    high_32 = algorithm.bit_by_bit(crc_input) | 0x80000000
-    full_64 = (high_32 << 32) | 0x02000000
-    return str(full_64)
+def set_proton_version(prefix_app_id: int):
+    config_vdf_path = os.path.join(STEAM_DIR, "config", "config.vdf")
+    if not os.path.exists(config_vdf_path):
+        print("Steam config file not found! Exiting...", file=sys.stderr)
+        exit(1)
+    # backup config file
+    shutil.copyfile(config_vdf_path, config_vdf_path + f".{int(time.time())}.bak")
+
+    with open(config_vdf_path, "r") as config_file:
+        data = vdf.load(config_file)
+
+    data["InstallConfigStore"]["Software"]["Valve"]["Steam"]["CompatToolMapping"][str(prefix_app_id)] = \
+        {
+            "name": "proton_experimental",
+            "config": "",
+            "priority": "250"
+        }
+
+    with open(config_vdf_path, "w") as config_file:
+        vdf.dump(data, config_file)
 
 
 def generate_steam_shortcut() -> int:
     # Get the existing user ids
     user_data_folder = os.path.join(STEAM_DIR, "userdata")
     user_ids = os.listdir(user_data_folder)
+    shortcut_name = "Breath of the Wild Multiplayer"
 
     # TODO get user name from user id
     # Prompt user to pick the user id
@@ -454,43 +462,67 @@ def generate_steam_shortcut() -> int:
 
     shortcuts_path = os.path.join(STEAM_DIR, f"userdata/{user_id}/config/shortcuts.vdf")
     if not os.path.exists(shortcuts_path):
-        with open(shortcuts_path, "wb") as f:
-            vdf.binary_dump({"shortcuts": {}}, f)
+        with open(shortcuts_path, "wb") as shortcuts_file:
+            vdf.binary_dump({"shortcuts": {}}, shortcuts_file)
 
-    with open(shortcuts_path, "rb") as f:
-        shortcuts = vdf.binary_load(f)
+    with open(shortcuts_path, "rb") as shortcuts_file:
+        shortcuts = vdf.binary_load(shortcuts_file)
 
     # Back up vdf
-    shortcuts_backup_path = os.path.join(STEAM_DIR, f"userdata/{user_id}/config/shortcuts.vdf.bak")
-    with open(shortcuts_backup_path, "wb") as f:
-        vdf.binary_dump(shortcuts, f)
+    shutil.copyfile(shortcuts_path, os.path.join(STEAM_DIR,
+                                                 f"userdata/{user_id}/config/shortcuts.vdf.{int(time.time())}.bak"))
 
     # Check to see if there is an entry with the name "Breath of the Wild Multiplayer Mod"
-    app_id = None
+    shortcut_app_id = None
     for shortcut in shortcuts.get("shortcuts", {}).values():
-        if "AppName" in shortcut and shortcut["AppName"] == "Breath of the Wild Multiplayer Mod":
-            app_id = shortcut_app_id(Shortcut(shortcut["AppName"], shortcut["exe"], shortcut["StartDir"], "", []))
+        if ("appname" in shortcut and shortcut["appname"] == shortcut_name) \
+                or ("AppName" in shortcut and shortcut["AppName"] == shortcut_name):
+            if "appid" in shortcut:
+                shortcut_app_id = shortcut["appid"]
             break
 
     # If not, generate a shortcut with the name "Breath of the Wild Multiplayer Mod"
-    if not app_id:
+    if not shortcut_app_id:
         mod_exe = os.path.join(MOD_DIR, "Breath of the Wild Multiplayer.exe")
-        new_shortcut = Shortcut("Breath of the Wild Multiplayer Mod", mod_exe, MOD_DIR, "", [])
+        new_shortcut = Shortcut(shortcut_name, mod_exe, MOD_DIR, "", [])
 
-        app_id = shortcut_app_id(new_shortcut)
-        next_app_id = max((int(key) for key in shortcuts.get("shortcuts", {}).keys()), default=0) + 1
-        shortcuts["shortcuts"][str(next_app_id)] = {
-            "AppName": new_shortcut.name,
-            "exe": new_shortcut.exe,
+        shortcut_app_id = appids.generate_shortcut_id(new_shortcut.exe, new_shortcut.name)
+        next_index = max((int(key) for key in shortcuts.get("shortcuts", {}).keys()), default=0) + 1
+        shortcuts["shortcuts"][str(next_index)] = \
+        {
+            "appid": shortcut_app_id,
+            "appname": new_shortcut.name,
+            "Exe": new_shortcut.exe,
             "StartDir": new_shortcut.startdir,
             "icon": new_shortcut.icon,
-            "tags": {str(i): tag for i, tag in enumerate(new_shortcut.tags)}
+            "LaunchOptions": "",
+            "IsHidden": 0,
+            "AllowDesktopConfig": 1,
+            "AllowOverlay": 1,
+            "OpenVR": 0,
+            "Devkit": 0,
+            "DevkitGameID": "",
+            "DevkitOverrideAppID": 0,
+            "LastPlayTime": 0,
+            "FlatpakAppID": "",
+            "tags": {}
         }
 
-        with open(shortcuts_path, "wb") as f:
-            vdf.binary_dump(shortcuts, f)
+        with open(shortcuts_path, "wb") as shortcuts_file:
+            vdf.binary_dump(shortcuts, shortcuts_file)
 
-    return int(app_id)
+    prefix_app_id = appids.shortcut_id_to_short_app_id(shortcut_app_id)
+    long_app_id = appids.lengthen_app_id(prefix_app_id)
+    # either way, set the proton version
+    set_proton_version(prefix_app_id)
+
+    # TODO maybe add this to log file once we do that
+    print(f"Shortcut name: {shortcut_name}")
+    print(f"Shortcut app id: {shortcut_app_id}")
+    print(f"Prefix app id: {prefix_app_id}")
+    print(f"Long app id: {long_app_id}")
+
+    return prefix_app_id
 
 
 def update_graphics_packs(cemu_path: str):
@@ -539,5 +571,4 @@ def main():
 
 
 if __name__ == "__main__":
-    # download_mod_files()
     main()
