@@ -7,6 +7,7 @@ import sys
 import py7zr
 import requests
 import shutil
+import time
 import uuid
 import vdf
 import zipfile
@@ -376,7 +377,7 @@ def generate_graphics_packs(game_dir: str, update_dir: str, dlc_dir: str):
     settings_json["store_dir"] = os.path.expanduser("~/.config/bcml")
     settings_json["export_dir"] = os.path.join(WORKING_DIR, "bcml_exports")
 
-    temp_bcml_dir = os.path.expanduser('~/.config/bcml_temp')
+    temp_bcml_dir = os.path.expanduser(f'~/.config/bcml_temp_{int(time.time())}')
     bcml_dir = os.path.expanduser('~/.config/bcml')
 
     if os.path.exists(temp_bcml_dir):
@@ -428,7 +429,7 @@ def set_proton_version(prefix_app_id: int):
         print("Steam config file not found! Exiting...", file=sys.stderr)
         exit(1)
     # backup config file
-    shutil.copyfile(config_vdf_path, config_vdf_path + ".bak")
+    shutil.copyfile(config_vdf_path, config_vdf_path + f".{int(time.time())}.bak")
 
     with open(config_vdf_path, "r") as config_file:
         data = vdf.load(config_file)
@@ -468,9 +469,8 @@ def generate_steam_shortcut() -> int:
         shortcuts = vdf.binary_load(shortcuts_file)
 
     # Back up vdf
-    shortcuts_backup_path = os.path.join(STEAM_DIR, f"userdata/{user_id}/config/shortcuts.vdf.bak")
-    with open(shortcuts_backup_path, "wb") as f:
-        vdf.binary_dump(shortcuts, f)
+    shutil.copyfile(shortcuts_path, os.path.join(STEAM_DIR,
+                                                 f"userdata/{user_id}/config/shortcuts.vdf.{int(time.time())}.bak"))
 
     # Check to see if there is an entry with the name "Breath of the Wild Multiplayer Mod"
     shortcut_app_id = None
