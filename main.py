@@ -438,7 +438,7 @@ def shortcut_app_id(shortcut: Shortcut) -> str:
     return str(full_64)
 
 
-def generate_steam_shortcut() -> int:
+def generate_steam_shortcut() -> Tuple[int,int]:
     # Get the existing user ids
     user_data_folder = os.path.join(STEAM_DIR, "userdata")
     user_ids = os.listdir(user_data_folder)
@@ -490,7 +490,7 @@ def generate_steam_shortcut() -> int:
         with open(shortcuts_path, "wb") as f:
             vdf.binary_dump(shortcuts, f)
 
-    return int(app_id)
+    return (int(app_id),int(user_id))
 
 
 def update_graphics_packs(cemu_path: str):
@@ -520,6 +520,13 @@ def update_graphics_packs(cemu_path: str):
     tree.write(settings_path)
 
 
+def add_grids(app_id: int, user_id: int):
+    try:
+        for file in os.listdir('./Grids'):
+            shutil.copy(f'./Grids/{file}',f'{STEAM_DIR}/userdata/{user_id}/config/grid/{app_id}{file[5:]}')
+    except:
+        print("Could not write to your steam grids folder. If you want custom artwork for your shortcut, please add the files in ./Grids/ manually.")
+
 def main():
     cemu_dir, game_dir, update_dir, dlc_dir = get_user_paths()
     # Generate the working directory
@@ -529,7 +536,10 @@ def main():
     download_mod_files()
 
     # Generate steam shortcut
-    generate_steam_shortcut()
+    app_id, user_id = generate_steam_shortcut()
+
+    # Add custom grids to shortcut
+    add_grids(app_id, user_id)
 
     # Generate the graphics packs from the mod files
     generate_graphics_packs(game_dir, update_dir, dlc_dir)
