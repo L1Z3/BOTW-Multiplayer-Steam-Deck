@@ -441,7 +441,7 @@ def set_proton_version(prefix_app_id: int):
         vdf.dump(data, config_file)
 
 
-def generate_steam_shortcut() -> int:
+def generate_steam_shortcut() -> Tuple[int,int]:
     # Get the existing user ids
     user_data_folder = os.path.join(STEAM_DIR, "userdata")
     user_ids = os.listdir(user_data_folder)
@@ -480,9 +480,11 @@ def generate_steam_shortcut() -> int:
     # If not, generate a shortcut with the name "Breath of the Wild Multiplayer Mod"
     if not shortcut_app_id:
         mod_exe = os.path.join(MOD_DIR, "Breath of the Wild Multiplayer.exe")
-        new_shortcut = Shortcut(shortcut_name, mod_exe, MOD_DIR, "", [])
+        shortcut_app_id = appids.generate_shortcut_id(mod_exe, shortcut_name)
+        prefix_app_id = appids.shortcut_id_to_short_app_id(shortcut_app_id)
+        icon = os.path.join(STEAM_DIR, f"userdata/{user_id}/config/grid/{prefix_app_id}_icon.png")
 
-        shortcut_app_id = appids.generate_shortcut_id(new_shortcut.exe, new_shortcut.name)
+        new_shortcut = Shortcut(shortcut_name, mod_exe, MOD_DIR, icon, [])
         next_index = max((int(key) for key in shortcuts.get("shortcuts", {}).keys()), default=0) + 1
         shortcuts["shortcuts"][str(next_index)] = \
         {
@@ -518,7 +520,7 @@ def generate_steam_shortcut() -> int:
     print(f"Prefix app id: {prefix_app_id}")
     print(f"Long app id: {long_app_id}")
 
-    return prefix_app_id
+    return int(prefix_app_id), int(user_id)
 
 def place_graphics_packs(cemu_path: str, bcml_path: str):
     destination = os.path.join(cemu_path, 'graphicPacks/BreathOfTheWild_BCML')
@@ -550,6 +552,17 @@ def update_graphics_packs(cemu_path: str):
             graphic_pack_element.append(entry_element)
     tree.write(settings_path)
 
+def add_grids(app_id: int, user_id: int):
+    try:
+        for file in os.listdir('./grids'):
+            shutil.copy(f"./grids/{file}",
+                        os.path.join(STEAM_DIR, f"userdata/{user_id}/config/grid/{file.replace('BotWM', str(app_id))}"))
+    except FileNotFoundError:
+        print(f"Could not write to your steam grids folder. If you want custom artwork for your shortcut, please "
+              f"add the files from {os.path.abspath('./grids/')} manually.")
+    except Exception as e:
+        print(e)
+
 def main():
     cemu_dir, game_dir, update_dir, dlc_dir = get_user_paths()
     # Generate the working directory
@@ -559,7 +572,10 @@ def main():
     download_mod_files()
 
     # Generate steam shortcut
-    generate_steam_shortcut()
+    prefix_app_id, user_id = generate_steam_shortcut()
+
+    # Add grid data
+    add_grids(prefix_app_id, user_id)
 
     # Generate the graphics packs from the mod files
     bcml_dir = generate_graphics_packs(game_dir, update_dir, dlc_dir)
