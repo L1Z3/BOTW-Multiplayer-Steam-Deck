@@ -560,10 +560,11 @@ def add_grids(app_id: int, user_id: int):
             shutil.copy(f"./grids/{file}",
                         os.path.join(STEAM_DIR, f"userdata/{user_id}/config/grid/{file.replace('BotWM', str(app_id))}"))
     except FileNotFoundError:
-        print(f"Could not write to your steam grids folder. If you want custom artwork for your shortcut, please "
-              f"add the files from {os.path.abspath('./grids/')} manually.")
+        print(f"Could not write to your Steam artwork folder. If you want custom artwork for your shortcut, please "
+              f"add the files from {os.path.abspath('./grids/')} manually in the Steam desktop client.")
     except Exception as e:
-        print(e)
+        print(f"An error has occurred while adding artwork to Steam. Please continue with installation, and add the "
+              f"artwork to Steam later if desired.\nAll artwork can be found in {os.path.abspath('./grids/')}\nError: {e}")
 
 def main():
     cemu_dir, game_dir, update_dir, dlc_dir = get_user_paths()
