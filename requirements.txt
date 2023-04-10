@@ -3,3 +3,4 @@ py7zr
 requests
 vdf
 packaging
+crc32c
