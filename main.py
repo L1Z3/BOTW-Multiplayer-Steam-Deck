@@ -21,14 +21,14 @@ from requests.structures import CaseInsensitiveDict
 from typing import Optional, Tuple, Dict, List
 from xml.etree import ElementTree as ET
 
-Shortcut = collections.namedtuple('Shortcut', ['name', 'exe', 'startdir', 'icon', 'tags'])
+Shortcut = collections.namedtuple("Shortcut", ["name", "exe", "startdir", "icon", "tags"])
 
 DOWNLOAD_URL = "https://api.github.com/repos/edgarcantuco/BOTW.Release/releases"
 WORKING_DIR = os.path.expanduser("~/.local/share/botwminstaller")
 MOD_DIR = os.path.join(WORKING_DIR, "BreathOfTheWildMultiplayer")
 STEAM_DIR = os.path.expanduser("~/.steam/steam")
 
-CEMU_URL = 'https://cemu.info/releases/cemu_1.27.1.zip'  # where to download the Cemu zip from
+CEMU_URL = "https://cemu.info/releases/cemu_1.27.1.zip"  # where to download the Cemu zip from
 
 
 def normalize_path(path: str) -> str:
@@ -37,14 +37,14 @@ def normalize_path(path: str) -> str:
     :param path: path to convert
     :return: path in Unix format
     """
-    if len(path) < 2 or not path[0].isalpha() or path[1] != ':':
+    if len(path) < 2 or not path[0].isalpha() or path[1] != ":":
         return path
 
     # Replace backslashes with forward slashes
-    unix_path = path.replace('\\', '/')
+    unix_path = path.replace("\\", "/")
 
     # Remove drive letter
-    _, rest_of_path = unix_path.split(':', 1)
+    _, rest_of_path = unix_path.split(":", 1)
     return rest_of_path
 
 
@@ -62,12 +62,9 @@ def check_path(path: str, **kwargs) -> Tuple[bool, Optional[str], str]:
              and normalized_path is the input path with a trailing slash added if necessary.
     """
 
-    def normalize_path(p):
-        return p if p.endswith(('/', '\\')) else p + '/'
-
-    path_contains: list = kwargs.get('path_contains')
-    dir_includes: list = kwargs.get('dir_includes')
-    sub_folder_includes: dict = kwargs.get('sub_folder_includes')
+    path_contains: list = kwargs.get("path_contains")
+    dir_includes: list = kwargs.get("dir_includes")
+    sub_folder_includes: dict = kwargs.get("sub_folder_includes")
     path = os.path.expanduser(normalize_path(path))
 
     if path_contains is not None:
@@ -83,18 +80,19 @@ def check_path(path: str, **kwargs) -> Tuple[bool, Optional[str], str]:
                 if file not in files:
                     reason = f"Directory missing necessary files!\nFiles needed: {dir_includes}\nFiles present: {files}"
                     return False, reason, path
-        except Exception as e:
+        except OSError as e:
             return False, str(e), path
 
     if sub_folder_includes is not None:
-        for subFolder, required_files in sub_folder_includes.items():
+        for sub_folder, required_files in sub_folder_includes.items():
             try:
-                files = os.listdir(path + subFolder)
+                files = os.listdir(os.path.join(path, sub_folder))
                 for file in required_files:
                     if file not in files:
-                        reason = f"Sub-directory missing necessary files!\nFiles needed: {required_files}\nFiles present: {files}"
+                        reason = f"Sub-directory missing necessary files!\nFiles needed: {required_files}\n" \
+                                 f"Files present: {files}"
                         return False, reason, path
-            except Exception as e:
+            except OSError as e:
                 return False, str(e), path
 
     return True, None, path
@@ -108,13 +106,13 @@ def get_path(input_message: str, **kwargs) -> str:
         - required_phrases (list): A list of substrings that are required to be in the file path.
         - required_files (list): A list of files that are required to be in the directory.
         - required_sub_files (dict): A dictionary of files that are required to be in a subdirectory.
-          Format: {'subdirectory': ['file.txt', 'file2.json'], 'subdirectory2/subsubdirectory': ['coolfile.txt']}
+          Format: {"subdirectory": ["file.txt", "file2.json"], "subdirectory2/subsubdirectory": ["coolfile.txt"]}
           IMPORTANT: USE LISTS EVEN IF IT IS ONLY ONE FILE, DO NOT ADD A PRESLASH TO THE SUBDIRECTORY.
     :return: The valid file path entered by the user or None if invalid.
     """
-    required_phrases: list = kwargs.get('required_phrases', [])
-    required_files: list = kwargs.get('required_files', [])
-    required_sub_files: dict = kwargs.get('required_sub_files', {})
+    required_phrases: list = kwargs.get("required_phrases", [])
+    required_files: list = kwargs.get("required_files", [])
+    required_sub_files: dict = kwargs.get("required_sub_files", {})
 
     while True:
         user_input = input(input_message)
@@ -140,9 +138,9 @@ def get_sd_path() -> Optional[str]:
 
 
 def wait_for_confirmation(prompt: str) -> bool:
-    while (confirmation := str(input(prompt)).lower()) not in ['y', 'n']:
+    while (confirmation := str(input(prompt)).lower()) not in ["y", "n"]:
         pass
-    return True if confirmation == 'y' else False
+    return True if confirmation == "y" else False
 
 
 def get_directory(xml_root: Optional[ET.Element],
@@ -166,8 +164,8 @@ def get_directory(xml_root: Optional[ET.Element],
     """
     if xml_root is not None:
         for title in xml_root.findall(f".//title[@titleId='{title_id}']"):
-            xml_dir = normalize_path(title.find('path').text)
-            if not xml_dir.strip('/').strip('\\').endswith(base_dir):
+            xml_dir = normalize_path(title.find("path").text)
+            if not xml_dir.strip("/").strip("\\").endswith(base_dir):
                 xml_dir = os.path.join(xml_dir, base_dir)
             is_valid, reason, xml_dir = check_path(xml_dir, path_contains=path_contains,
                                                    sub_folder_includes=sub_folders)
@@ -188,14 +186,14 @@ def get_directory(xml_root: Optional[ET.Element],
 
 
 def scan_for_cemu() -> Optional[str]:
-    confirmation = wait_for_confirmation(f"Do you want to automatically look for a Cemu installation? "
-                                         f"This will scan your home directory for Cemu.exe and may take a while. [Y/n]: ")
+    confirmation = wait_for_confirmation(f"Do you want to automatically look for a Cemu installation? This will scan "
+                                         f"your home directory for Cemu.exe and may take a while. [Y/n]: ")
     if confirmation:
         try:
             print("Press ctrl+C at any time to end the scan.")
-            for root, dirs, files in os.walk(os.path.expanduser('~/')):
+            for root, dirs, files in os.walk(os.path.expanduser("~/")):
                 for filename in files:
-                    if filename == 'Cemu.exe':
+                    if filename == "Cemu.exe":
                         return root
         except KeyboardInterrupt:
             print("Scan aborted.")
@@ -207,7 +205,7 @@ def download_cemu() -> Optional[str]:
     if confirmation:
         try:
             z = zipfile.ZipFile(io.BytesIO(requests.get(CEMU_URL).content))
-            wiiu_dir = os.path.expanduser('~/Emulation/roms/wiiu/')
+            wiiu_dir = os.path.expanduser("~/Emulation/roms/wiiu/")
             os.makedirs(wiiu_dir, exist_ok=True)
             z.extractall(wiiu_dir)
             zipinfo = z.infolist()
@@ -222,23 +220,25 @@ def download_cemu() -> Optional[str]:
             return wiiu_dir
         except ValueError:
             Exception(
-                "ERROR: The information inside of the Cemu download was not what was expected! Please contact the developers of this application!")
-        except:
+                "ERROR: The information inside of the Cemu download was not what was expected! "
+                "Please contact the developers of this application!")
+        except (requests.RequestException, zipfile.BadZipFile, OSError, IndexError) as e:
             print(
-                "Something went wrong with the download, please download manually or select a previous installation in the next step!")
+                f"Something went wrong with the download, please download manually or select "
+                f"a previous installation in the next step! Error:\n{e}", file=sys.stderr)
     return None
 
 
 def get_cemu_dir() -> str:
     # Check for EmuDeck dirs
     is_valid, reason, emudeck_cemu_dir = check_path(
-        os.path.expanduser("~/Emulation/roms/wiiu"), dir_includes=['Cemu.exe', 'settings.xml'])
+        os.path.expanduser("~/Emulation/roms/wiiu"), dir_includes=["Cemu.exe", "settings.xml"])
 
     if not is_valid:
         sd_path = get_sd_path()
         if sd_path is not None:
             is_valid, reason, emudeck_cemu_dir = check_path(
-                f"{sd_path}/Emulation/roms/wiiu", dir_includes=['Cemu.exe', 'settings.xml'])
+                f"{sd_path}/Emulation/roms/wiiu", dir_includes=["Cemu.exe", "settings.xml"])
     cemu_dir = None
 
     if is_valid:
@@ -259,7 +259,7 @@ def get_cemu_dir() -> str:
             print(f"Successfully downloaded Cemu to {cemu_dir}!")
     if cemu_dir is None:
         cemu_dir = get_path("Directory to your Cemu Installation (where Cemu.exe is): ",
-                            required_files=['Cemu.exe', 'settings.xml'])
+                            required_files=["Cemu.exe", "settings.xml"])
 
     return cemu_dir
 
@@ -268,31 +268,31 @@ def get_user_paths() -> Tuple[str, str, str, str]:
     cemu_dir = get_cemu_dir()
 
     root = None
-    title_list_cache_path = os.path.join(cemu_dir, 'title_list_cache.xml')
+    title_list_cache_path = os.path.join(cemu_dir, "title_list_cache.xml")
     if os.path.exists(title_list_cache_path):
         tree = ET.parse(title_list_cache_path)
         root = tree.getroot()
 
     # Find the paths with a specific titleId
-    game_title_id = '00050000101c9400'
-    game_sub_folders = {'Layout': ['Horse.sblarc']}
+    game_title_id = "00050000101c9400"
+    game_sub_folders = {"Layout": ["Horse.sblarc"]}
     installed_game_dir = os.path.join(cemu_dir, "mlc01/usr/title/0005000/101c9400/content")
-    game_dir = get_directory(root, installed_game_dir, game_title_id, 'content', game_sub_folders, None, "Game")
+    game_dir = get_directory(root, installed_game_dir, game_title_id, "content", game_sub_folders, None, "Game")
 
     # Find the paths for update
-    update_title_id = '0005000e101c9400'
-    update_sub_folders = {'Actor/Pack': ['ActorObserverByActorTagTag.sbactorpack']}
+    update_title_id = "0005000e101c9400"
+    update_sub_folders = {"Actor/Pack": ["ActorObserverByActorTagTag.sbactorpack"]}
     installed_update_dir = os.path.join(cemu_dir, "mlc01/usr/title/0005000e/101c9400/content")
-    update_dir = get_directory(root, installed_update_dir, update_title_id, 'content', update_sub_folders,
+    update_dir = get_directory(root, installed_update_dir, update_title_id, "content", update_sub_folders,
                                None, "Update")
 
     # Find the paths for dlc
-    dlc_title_id = '0005000c101c9400'
-    dlc_sub_folders = {'Movie': ['Demo655_0.mp4']}
+    dlc_title_id = "0005000c101c9400"
+    dlc_sub_folders = {"Movie": ["Demo655_0.mp4"]}
     installed_dlc_dir = os.path.join(cemu_dir, "mlc01/usr/title/0005000c/101c9400/content/0010")
-    dlc_dir = get_directory(root, installed_dlc_dir, dlc_title_id, 'content/0010', dlc_sub_folders, None, "DLC")
+    dlc_dir = get_directory(root, installed_dlc_dir, dlc_title_id, "content/0010", dlc_sub_folders, None, "DLC")
 
-    # !!!IMPORTANT!!! the tests I used to check each directory may not work for everyone. This is based upon my files and
+    # !!IMPORTANT!! the tests I used to check each directory may not work for everyone. This is based upon my files and
     # my files may be messed up who knows. Double check these with your files to see if the tests work for you too :)
     return cemu_dir, game_dir, update_dir, dlc_dir
 
@@ -315,7 +315,6 @@ def download_mod_files():
             return
     headers = CaseInsensitiveDict()
     r = requests.get(DOWNLOAD_URL, headers=headers)
-    pretty = json.dumps(r.json(), indent=4)
 
     r_json = r.json()
     # if the response doesn't look right, throw an error
@@ -345,10 +344,10 @@ def download_mod_files():
     zip_name = os.path.join(WORKING_DIR, uuid.uuid4().hex + ".zip")
 
     if r.status_code == 200:
-        with open(zip_name, 'wb') as zip_file:
+        with open(zip_name, "wb") as zip_file:
             zip_file.write(r.content)
 
-        with zipfile.ZipFile(zip_name, 'r') as zip_ref:
+        with zipfile.ZipFile(zip_name, "r") as zip_ref:
             zip_ref.extractall(MOD_DIR)
 
         zip_file.close()
@@ -377,8 +376,8 @@ def generate_graphics_packs(game_dir: str, update_dir: str, dlc_dir: str):
     settings_json["store_dir"] = os.path.expanduser("~/.config/bcml")
     settings_json["export_dir"] = os.path.join(WORKING_DIR, "bcml_exports")
 
-    temp_bcml_dir = os.path.expanduser(f'~/.config/bcml_temp_{int(time.time())}')
-    bcml_dir = os.path.expanduser('~/.config/bcml')
+    temp_bcml_dir = os.path.expanduser(f"~/.config/bcml_temp_{int(time.time())}")
+    bcml_dir = os.path.expanduser("~/.config/bcml")
 
     if os.path.exists(temp_bcml_dir):
         shutil.rmtree(temp_bcml_dir)
@@ -388,7 +387,7 @@ def generate_graphics_packs(game_dir: str, update_dir: str, dlc_dir: str):
 
     os.makedirs(bcml_dir)
 
-    with open(os.path.join(bcml_dir, 'settings.json'), 'w') as settings_file:
+    with open(os.path.join(bcml_dir, "settings.json"), "w") as settings_file:
         json.dump(settings_json, settings_file, indent=4)
 
     install_mod(Path(MOD_DIR) / "BNPs" / "BreathoftheWildMultiplayer.bnp")
@@ -419,6 +418,7 @@ def generate_graphics_packs(game_dir: str, update_dir: str, dlc_dir: str):
 
     return graphics_pack
 
+
 def set_proton_version(prefix_app_id: int):
     config_vdf_path = os.path.join(STEAM_DIR, "config", "config.vdf")
     if not os.path.exists(config_vdf_path):
@@ -441,7 +441,7 @@ def set_proton_version(prefix_app_id: int):
         vdf.dump(data, config_file)
 
 
-def generate_steam_shortcut() -> Tuple[int,int]:
+def generate_steam_shortcut() -> Tuple[int, int]:
     # Get the existing user ids
     user_data_folder = os.path.join(STEAM_DIR, "userdata")
     user_ids = os.listdir(user_data_folder)
@@ -487,24 +487,24 @@ def generate_steam_shortcut() -> Tuple[int,int]:
         new_shortcut = Shortcut(shortcut_name, mod_exe, MOD_DIR, icon, [])
         next_index = max((int(key) for key in shortcuts.get("shortcuts", {}).keys()), default=0) + 1
         shortcuts["shortcuts"][str(next_index)] = \
-        {
-            "appid": shortcut_app_id,
-            "appname": new_shortcut.name,
-            "Exe": new_shortcut.exe,
-            "StartDir": new_shortcut.startdir,
-            "icon": new_shortcut.icon,
-            "LaunchOptions": "",
-            "IsHidden": 0,
-            "AllowDesktopConfig": 1,
-            "AllowOverlay": 1,
-            "OpenVR": 0,
-            "Devkit": 0,
-            "DevkitGameID": "",
-            "DevkitOverrideAppID": 0,
-            "LastPlayTime": 0,
-            "FlatpakAppID": "",
-            "tags": {}
-        }
+            {
+                "appid": shortcut_app_id,
+                "appname": new_shortcut.name,
+                "Exe": new_shortcut.exe,
+                "StartDir": new_shortcut.startdir,
+                "icon": new_shortcut.icon,
+                "LaunchOptions": "",
+                "IsHidden": 0,
+                "AllowDesktopConfig": 1,
+                "AllowOverlay": 1,
+                "OpenVR": 0,
+                "Devkit": 0,
+                "DevkitGameID": "",
+                "DevkitOverrideAppID": 0,
+                "LastPlayTime": 0,
+                "FlatpakAppID": "",
+                "tags": {}
+            }
 
         with open(shortcuts_path, "wb") as shortcuts_file:
             vdf.binary_dump(shortcuts, shortcuts_file)
@@ -522,17 +522,18 @@ def generate_steam_shortcut() -> Tuple[int,int]:
 
     return int(prefix_app_id), int(user_id)
 
+
 def place_graphics_packs(cemu_path: str, bcml_path: str):
-    destination = os.path.join(cemu_path, 'graphicPacks/BreathOfTheWild_BCML')
+    destination = os.path.join(cemu_path, "graphicPacks/BreathOfTheWild_BCML")
     if os.path.exists(destination):
         shutil.rmtree(destination)
     shutil.copytree(bcml_path, destination)
     patches = os.path.join(bcml_path, "patches")
-    patches_destination = os.path.join(cemu_path, 'graphicPacks', 'bcmlPatches', 'BreathoftheWildMultiplayer')
+    patches_destination = os.path.join(cemu_path, "graphicPacks", "bcmlPatches", "BreathoftheWildMultiplayer")
     if os.path.exists(patches_destination):
         shutil.rmtree(patches_destination)
     shutil.copytree(patches, patches_destination)
-    
+
 
 def update_graphics_packs(cemu_path: str):
     # Add the relevant entries to the settings.xml file
@@ -554,9 +555,10 @@ def update_graphics_packs(cemu_path: str):
             graphic_pack_element.append(entry_element)
     tree.write(settings_path)
 
+
 def add_grids(app_id: int, user_id: int):
     try:
-        for file in os.listdir('./grids'):
+        for file in os.listdir("./grids"):
             shutil.copy(f"./grids/{file}",
                         os.path.join(STEAM_DIR, f"userdata/{user_id}/config/grid/{file.replace('BotWM', str(app_id))}"))
     except FileNotFoundError:
@@ -564,7 +566,9 @@ def add_grids(app_id: int, user_id: int):
               f"add the files from {os.path.abspath('./grids/')} manually in the Steam desktop client.")
     except Exception as e:
         print(f"An error has occurred while adding artwork to Steam. Please continue with installation, and add the "
-              f"artwork to Steam later if desired.\nAll artwork can be found in {os.path.abspath('./grids/')}\nError: {e}")
+              f"artwork to Steam later if desired.\n"
+              f"All artwork can be found in {os.path.abspath('./grids/')}\nError: {e}")
+
 
 def main():
     cemu_dir, game_dir, update_dir, dlc_dir = get_user_paths()
