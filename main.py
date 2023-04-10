@@ -300,8 +300,8 @@ def get_mod_version() -> Optional[version.Version]:
     version_path = os.path.join(MOD_DIR, "Version.txt")
     if not os.path.exists(version_path):
         return None
-    with open(version_path, "r") as file:
-        version_str = file.read()
+    with open(version_path, "r") as version_file:
+        version_str = version_file.read()
         return version.parse(version_str)
 
 
@@ -344,20 +344,20 @@ def download_mod_files():
     zip_name = os.path.join(WORKING_DIR, uuid.uuid4().hex + ".zip")
 
     if r.status_code == 200:
-        with open(zip_name, 'wb') as file:
-            file.write(r.content)
+        with open(zip_name, 'wb') as zip_file:
+            zip_file.write(r.content)
 
         with zipfile.ZipFile(zip_name, 'r') as zip_ref:
             zip_ref.extractall(MOD_DIR)
 
-        file.close()
+        zip_file.close()
         zip_ref.close()
 
         os.remove(zip_name)
 
         # update version data
-        with open(os.path.join(MOD_DIR, "Version.txt"), "w") as f:
-            f.write(str(latest_version))
+        with open(os.path.join(MOD_DIR, "Version.txt"), "w") as version_file:
+            version_file.write(str(latest_version))
     else:
         print("Error downloading mod files!", file=sys.stderr)
         if cur_version is None:
@@ -367,10 +367,9 @@ def download_mod_files():
         return
 
 
-
 def generate_graphics_packs(game_dir: str, update_dir: str, dlc_dir: str):
-    with open("settings_template.json", "r") as f:
-        settings_json = json.load(f)
+    with open("settings_template.json", "r") as template_file:
+        settings_json = json.load(template_file)
     settings_json["game_dir"] = game_dir
     settings_json["dlc_dir"] = dlc_dir
     settings_json["update_dir"] = update_dir
@@ -388,8 +387,8 @@ def generate_graphics_packs(game_dir: str, update_dir: str, dlc_dir: str):
 
     os.makedirs(bcml_dir)
 
-    with open(os.path.join(bcml_dir, 'settings.json'), 'w') as f:
-        json.dump(settings_json, f, indent=4)
+    with open(os.path.join(bcml_dir, 'settings.json'), 'w') as settings_file:
+        json.dump(settings_json, settings_file, indent=4)
 
     install_mod(Path(MOD_DIR) / "BNPs" / "BreathoftheWildMultiplayer.bnp")
     refresh_merges()
@@ -431,8 +430,8 @@ def set_proton_version(prefix_app_id: int):
     # backup config file
     shutil.copyfile(config_vdf_path, config_vdf_path + ".bak")
 
-    with open(config_vdf_path, "r") as f:
-        data = vdf.load(f)
+    with open(config_vdf_path, "r") as config_file:
+        data = vdf.load(config_file)
 
     data["InstallConfigStore"]["Software"]["Valve"]["Steam"]["CompatToolMapping"][str(prefix_app_id)] = \
         {
@@ -441,8 +440,8 @@ def set_proton_version(prefix_app_id: int):
             "priority": "250"
         }
 
-    with open(config_vdf_path, "w") as f:
-        vdf.dump(data, f)
+    with open(config_vdf_path, "w") as config_file:
+        vdf.dump(data, config_file)
 
 
 def generate_steam_shortcut() -> int:
@@ -462,11 +461,11 @@ def generate_steam_shortcut() -> int:
 
     shortcuts_path = os.path.join(STEAM_DIR, f"userdata/{user_id}/config/shortcuts.vdf")
     if not os.path.exists(shortcuts_path):
-        with open(shortcuts_path, "wb") as f:
-            vdf.binary_dump({"shortcuts": {}}, f)
+        with open(shortcuts_path, "wb") as shortcuts_file:
+            vdf.binary_dump({"shortcuts": {}}, shortcuts_file)
 
-    with open(shortcuts_path, "rb") as f:
-        shortcuts = vdf.binary_load(f)
+    with open(shortcuts_path, "rb") as shortcuts_file:
+        shortcuts = vdf.binary_load(shortcuts_file)
 
     # Back up vdf
     shortcuts_backup_path = os.path.join(STEAM_DIR, f"userdata/{user_id}/config/shortcuts.vdf.bak")
@@ -509,8 +508,8 @@ def generate_steam_shortcut() -> int:
             "tags": {}
         }
 
-        with open(shortcuts_path, "wb") as f:
-            vdf.binary_dump(shortcuts, f)
+        with open(shortcuts_path, "wb") as shortcuts_file:
+            vdf.binary_dump(shortcuts, shortcuts_file)
 
     prefix_app_id = appids.shortcut_id_to_short_app_id(shortcut_app_id)
     long_app_id = appids.lengthen_app_id(prefix_app_id)
