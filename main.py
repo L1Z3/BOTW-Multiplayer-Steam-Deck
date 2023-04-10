@@ -398,9 +398,8 @@ def generate_graphics_packs(game_dir: str, update_dir: str, dlc_dir: str):
 
     export_path = Path(WORKING_DIR) / "exported-mods.7z"
     export(export_path, True)
-
-    py7zr.unpack_7zarchive(export_path,
-                           os.path.join(WORKING_DIR, "BreathOfTheWild_BCML"))
+    graphics_pack = os.path.join(WORKING_DIR, "BreathOfTheWild_BCML")
+    py7zr.unpack_7zarchive(export_path, graphics_pack)
     rules = Path(WORKING_DIR) / "BreathOfTheWild_BCML" / "rules.txt"
     rules.write_text(
         "[Definition]\n"
@@ -418,10 +417,7 @@ def generate_graphics_packs(game_dir: str, update_dir: str, dlc_dir: str):
 
     shutil.move(temp_bcml_dir, bcml_dir)
 
-    # TODO copy into graphicsPacks and copy patches to separate dir
-
-    # TODO enable the packs with settings.
-
+    return graphics_pack
 
 def set_proton_version(prefix_app_id: int):
     config_vdf_path = os.path.join(STEAM_DIR, "config", "config.vdf")
@@ -526,6 +522,17 @@ def generate_steam_shortcut() -> Tuple[int,int]:
 
     return int(prefix_app_id), int(user_id)
 
+def place_graphics_packs(cemu_path: str, bcml_path: str):
+    destination = os.path.join(cemu_path, 'graphicPacks/BreathOfTheWild_BCML')
+    if os.path.exists(destination):
+        shutil.rmtree(destination)
+    shutil.copytree(bcml_path, destination)
+    patches = os.path.join(bcml_path, "patches")
+    patches_destination = os.path.join(cemu_path, 'graphicPacks', 'bcmlPatches', 'BreathoftheWildMultiplayer')
+    if os.path.exists(patches_destination):
+        shutil.rmtree(patches_destination)
+    shutil.copytree(patches, patches_destination)
+    
 
 def update_graphics_packs(cemu_path: str):
     # Add the relevant entries to the settings.xml file
@@ -535,24 +542,17 @@ def update_graphics_packs(cemu_path: str):
 
     graphic_pack_entries = [
         {"filename": "graphicPacks/BreathOfTheWild_BCML/rules.txt"},
-        {"filename": "graphicPacks/bcmlPatches/BreathoftheWildMultiplayer/rules.txt"}
+        {"filename": "graphicPacks/bcmlPatches/BreathoftheWildMultiplayer/rules.txt"},
+        {"filename": "graphicPacks/downloadedGraphicPacks/BreathOfTheWild/Mods/ExtendedMemory/rules.txt"},
+        {"filename": "graphicPacks/downloadedGraphicPacks/BreathOfTheWild/Mods/FPS++/rules.txt"},
     ]
 
     graphic_pack_element = root.find("GraphicPack")
-
     for entry in graphic_pack_entries:
-        existing_entry = None
-        for elem in graphic_pack_element.findall("Entry"):
-            if elem.attrib["filename"] == entry["filename"]:
-                existing_entry = elem
-                break
-
-        if not existing_entry:
-            entry_element = ET.SubElement(graphic_pack_element, "Entry", entry)
+        if not any(e.attrib["filename"] == entry["filename"] for e in graphic_pack_element):
+            entry_element = ET.Element("Entry", entry)
             graphic_pack_element.append(entry_element)
-
     tree.write(settings_path)
-
 
 def add_grids(app_id: int, user_id: int):
     try:
@@ -564,7 +564,6 @@ def add_grids(app_id: int, user_id: int):
               f"add the files from {os.path.abspath('./grids/')} manually.")
     except Exception as e:
         print(e)
-
 
 def main():
     cemu_dir, game_dir, update_dir, dlc_dir = get_user_paths()
@@ -581,10 +580,11 @@ def main():
     add_grids(prefix_app_id, user_id)
 
     # Generate the graphics packs from the mod files
-    generate_graphics_packs(game_dir, update_dir, dlc_dir)
+    bcml_dir = generate_graphics_packs(game_dir, update_dir, dlc_dir)
 
     # Place the graphics packs in cemu & verify they're in the settings.xml
-    # update_graphics_packs(cemu_dir)
+    place_graphics_packs(cemu_dir, bcml_dir)
+    update_graphics_packs(cemu_dir)
 
 
 if __name__ == "__main__":
