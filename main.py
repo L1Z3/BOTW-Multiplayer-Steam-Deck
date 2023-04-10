@@ -533,6 +533,7 @@ def place_graphics_packs(cemu_path: str, bcml_path: str):
     
 
 def update_graphics_packs(cemu_path: str):
+    # Add the relevant entries to the settings.xml file
     settings_path = os.path.join(cemu_path, "settings.xml")
     tree = ET.parse(settings_path)
     root = tree.getroot()
@@ -552,19 +553,19 @@ def update_graphics_packs(cemu_path: str):
 def main():
     cemu_dir, game_dir, update_dir, dlc_dir = get_user_paths()
     # Generate the working directory
-    # os.makedirs(WORKING_DIR, exist_ok=True)
+    os.makedirs(WORKING_DIR, exist_ok=True)
 
     # Download the latest mod files
-    # download_mod_files()
+    download_mod_files()
 
     # Generate steam shortcut
-    # generate_steam_shortcut()
+    generate_steam_shortcut()
 
     # Generate the graphics packs from the mod files
-    # bcml_dir = generate_graphics_packs(game_dir, update_dir, dlc_dir)
+    bcml_dir = generate_graphics_packs(game_dir, update_dir, dlc_dir)
 
     # Place the graphics packs in cemu & verify they're in the settings.xml
-    # place_graphics_packs(cemu_dir, bcml_dir)
+    place_graphics_packs(cemu_dir, bcml_dir)
     update_graphics_packs(cemu_dir)
 
 
