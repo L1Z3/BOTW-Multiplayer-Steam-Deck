@@ -552,12 +552,11 @@ def update_graphics_packs(cemu_path: str):
     tree.write(settings_path)
 
 def add_grids(app_id: int, user_id: int):
-    gridDir = os.path.join(WORKING_DIR, 'grids')
     try:
-        for file in os.listdir(gridDir):
-            shutil.copy(os.path.join(gridDir, file),os.path.join(STEAM_DIR, f"/userdata/{user_id}/config/grid/{file.replace('BotWM', app_id)}"))
+        for file in os.listdir('./grids'):
+            shutil.copy(f"./grids/{file}",os.path.join(STEAM_DIR, f"/userdata/{user_id}/config/grid/{file.replace('BotWM', app_id)}"))
     except:
-        print(f"Could not write to your steam grids folder. If you want custom artwork for your shortcut, please add the files from {gridDir} manually.")
+        print(f"Could not write to your steam grids folder. If you want custom artwork for your shortcut, please add the files from {os.path.abspath('./grids/')} manually.")
 
 
 def main():
