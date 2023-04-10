@@ -559,9 +559,11 @@ def add_grids(app_id: int, user_id: int):
         for file in os.listdir('./grids'):
             shutil.copy(f"./grids/{file}",
                         os.path.join(STEAM_DIR, f"userdata/{user_id}/config/grid/{file.replace('BotWM', str(app_id))}"))
-    except:
+    except FileNotFoundError:
         print(f"Could not write to your steam grids folder. If you want custom artwork for your shortcut, please "
               f"add the files from {os.path.abspath('./grids/')} manually.")
+    except Exception as e:
+        print(e)
 
 
 def main():
