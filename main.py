@@ -445,7 +445,7 @@ def set_proton_version(prefix_app_id: int):
         vdf.dump(data, config_file)
 
 
-def generate_steam_shortcut() -> int:
+def generate_steam_shortcut() -> Tuple[int,int]:
     # Get the existing user ids
     user_data_folder = os.path.join(STEAM_DIR, "userdata")
     user_ids = os.listdir(user_data_folder)
@@ -522,7 +522,7 @@ def generate_steam_shortcut() -> int:
     print(f"Prefix app id: {prefix_app_id}")
     print(f"Long app id: {long_app_id}")
 
-    return prefix_app_id
+    return int(prefix_app_id), int(user_id)
 
 
 def update_graphics_packs(cemu_path: str):
@@ -551,6 +551,13 @@ def update_graphics_packs(cemu_path: str):
 
     tree.write(settings_path)
 
+def add_grids(app_id: int, user_id: int):
+    try:
+        for file in os.listdir('./grids'):
+            shutil.copy(f'./Grids/{file}',f'{STEAM_DIR}/userdata/{user_id}/config/grid/{app_id}{file[5:]}')
+    except:
+        print("Could not write to your steam grids folder. If you want custom artwork for your shortcut, please add the files in ./Grids/ manually.")
+
 
 def main():
     cemu_dir, game_dir, update_dir, dlc_dir = get_user_paths()
@@ -561,7 +568,10 @@ def main():
     download_mod_files()
 
     # Generate steam shortcut
-    generate_steam_shortcut()
+    prefix_app_id, user_id = generate_steam_shortcut()
+
+    # Add grid data
+    add_grids(prefix_app_id, user_id)
 
     # Generate the graphics packs from the mod files
     generate_graphics_packs(game_dir, update_dir, dlc_dir)
