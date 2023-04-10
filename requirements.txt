@@ -2,3 +2,4 @@ bcml==3.10.8
 py7zr
 requests
 vdf
+packaging

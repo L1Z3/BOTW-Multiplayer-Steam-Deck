@@ -3,6 +3,7 @@
 import collections
 import json
 import os
+import sys
 import py7zr
 import requests
 import shutil
@@ -13,6 +14,7 @@ import io
 
 from _crc_algorithms import Crc
 from bcml.install import export, install_mod, refresh_merges
+from packaging import version
 from pathlib import Path
 from requests.structures import CaseInsensitiveDict
 from typing import Optional, Tuple, Dict, List
@@ -294,17 +296,47 @@ def get_user_paths() -> Tuple[str, str, str, str]:
     return cemu_dir, game_dir, update_dir, dlc_dir
 
 
+def get_mod_version() -> Optional[version.Version]:
+    version_path = os.path.join(MOD_DIR, "Version.txt")
+    if not os.path.exists(version_path):
+        return None
+    with open(version_path, "r") as file:
+        version_str = file.read()
+        return version.parse(version_str)
+
+
 def download_mod_files():
+    cur_version = get_mod_version()
+    if cur_version is not None:
+        confirmation = wait_for_confirmation(f"BOTWM mod version {cur_version} already downloaded. "
+                                             f"Would you like to check for updates? [Y/n]: ")
+        if not confirmation:
+            return
     headers = CaseInsensitiveDict()
     r = requests.get(DOWNLOAD_URL, headers=headers)
     pretty = json.dumps(r.json(), indent=4)
 
     r_json = r.json()
-    if len(r_json) == 0:
-        raise Exception("Error downloading mod files")
-    if "message" in r_json and "rate limit" in r_json["message"]:
-        raise Exception("Error downloading mod files")
+    # if the response doesn't look right, throw an error
+    if len(r_json) == 0 or ("message" in r_json and "rate limit" in r_json["message"]):
+        print("Error checking for mod file updates!", file=sys.stderr)
+        if "message" in r_json and "rate limit" in r_json["message"]:
+            print("(GitHub returned an API rate limit error.)", file=sys.stderr)
+        if cur_version is None:
+            print("No version of BOTWM mod downloaded! Exiting installer...", file=sys.stderr)
+            exit(1)
+        print(f"Continuing with current version ({cur_version})...", file=sys.stderr)
+        return
+
     latest_release = r_json[0]
+    latest_version = version.parse(latest_release["tag_name"])
+    if cur_version is not None and cur_version == latest_version:
+        print(f"Latest version BOTWM mod ({latest_version}) already downloaded")
+        return
+    if cur_version is not None and cur_version > latest_version:
+        print(f"Current version of BOTWM mod ({cur_version}) is newer than latest version ({latest_version})")
+        return
+    print(f"Downloading BOTWM mod version {latest_version}")
     download_link = latest_release["assets"][0]["browser_download_url"]
 
     r = requests.get(download_link, headers=headers)
@@ -322,8 +354,18 @@ def download_mod_files():
         zip_ref.close()
 
         os.remove(zip_name)
+
+        # update version data
+        with open(os.path.join(MOD_DIR, "Version.txt"), "w") as f:
+            f.write(str(latest_version))
     else:
-        raise Exception("Error downloading mod files")
+        print("Error downloading mod files!", file=sys.stderr)
+        if cur_version is None:
+            print("No version of BOTWM mod downloaded! Exiting installer...", file=sys.stderr)
+            exit(1)
+        print(f"Continuing with current version ({cur_version})...", file=sys.stderr)
+        return
+
 
 
 def generate_graphics_packs(game_dir: str, update_dir: str, dlc_dir: str):
@@ -497,4 +539,5 @@ def main():
 
 
 if __name__ == "__main__":
+    # download_mod_files()
     main()
