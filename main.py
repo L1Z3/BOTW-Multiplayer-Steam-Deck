@@ -542,9 +542,9 @@ def update_graphics_packs(cemu_path: str):
 
     graphic_pack_entries = [
         {"filename": "graphicPacks/BreathOfTheWild_BCML/rules.txt"},
-        {"filename": "graphicPacks/bcmlPatches/BreathoftheWildMultiplayer/rules.txt"}
-        {"filename": "graphicPacks/downloadedGraphicPacks/BreathOfTheWild/Mods/ExtendedMemory/rules.txt"}
-        {"filename": "graphicPacks/downloadedGraphicPacks/BreathOfTheWild/Mods/FPS++/rules.txt"}
+        {"filename": "graphicPacks/bcmlPatches/BreathoftheWildMultiplayer/rules.txt"},
+        {"filename": "graphicPacks/downloadedGraphicPacks/BreathOfTheWild/Mods/ExtendedMemory/rules.txt"},
+        {"filename": "graphicPacks/downloadedGraphicPacks/BreathOfTheWild/Mods/FPS++/rules.txt"},
     ]
 
     graphic_pack_element = root.find("GraphicPack")
