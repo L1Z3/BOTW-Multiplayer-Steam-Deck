@@ -563,7 +563,7 @@ def add_grids(app_id: int, user_id: int):
         print(f"Could not write to your steam grids folder. If you want custom artwork for your shortcut, please "
               f"add the files from {os.path.abspath('./grids/')} manually.")
     except Exception as e:
-        print(e)
+        print(f"An error has occurred while adding grids to Steam. Please continue with installation, and add the grids to steam later if desired.\nAll grids can be found in {os.path.abspath('./grids/')}\nError: {e}")
 
 
 def main():
