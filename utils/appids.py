@@ -1,5 +1,10 @@
-# Code in this file was adapted from SteamRomManager's AppId generation.
-# https://github.com/SteamGridDB/steam-rom-manager/blob/dc8500ebe7df467f310b1d36fbc93b44494169be/src/lib/helpers/steam/generate-app-id.ts
+"""
+Functions related to generating AppIds for Steam shortcuts.
+
+Code in this file was adapted from SteamRomManager's AppId generation.
+https://github.com/SteamGridDB/steam-rom-manager/blob/dc8500ebe7df467f310b1d36fbc93b44494169be/src/lib/helpers/steam/generate-app-id.ts
+"""
+
 
 import crc32c
 import ctypes
