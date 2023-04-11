@@ -3,6 +3,7 @@
 import collections
 import json
 import os
+import subprocess
 import sys
 import py7zr
 import requests
@@ -441,30 +442,29 @@ def set_proton_version(prefix_app_id: int):
         vdf.dump(data, config_file)
 
 
-def terminate_from_keywords(keywords: list, displayed_name: str):
+def terminate_program(process_name: str):
     # Wait for the user to press enter to proceed
-    input(f"{displayed_name} must be closed for the following steps.\nPlease close {displayed_name} if it is open, otherwise, it will be forcefully closed.\nPress enter to continue:")
-    
-    # Check if the program has already been closed
-    for process in psutil.process_iter(['pid','name']):
-        try:
-            for process_name in keywords:
-                if process_name in process.info['name'].lower():
-                    process.terminate()  # Terminate the process
-                    gone, alive = psutil.wait_procs(process, timeout=5)
-                    
-                    #for proc in alive: #leaving this here in case we want to do something if it hasn't closed
-                        #proc.kill()
-                    
-                    break
-        except psutil.AccessDenied:
-            input(f"This program does not have the correct permissions to close {displayed_name}.\nPlease close Steam manually, then press enter to continue:")
-        except (psutil.NoSuchProcess, psutil.ZombieProcess):
-            # Handle exceptions that might occur while iterating over running processes
-            pass
-     
+    try:
+        subprocess.run(["killall", "-w", process_name], check=True, timeout=15, capture_output=True, text=True)
+        print(f"Successfully closed '{process_name}'.")
+    except subprocess.CalledProcessError as e:
+        if "no process found" in e.stderr.lower():
+            print(f"{process_name} was already closed.")
+        else:
+            input(
+                f"This program does not have the correct permissions to close {process_name}.\n"
+                f"Please close {process_name} manually, then press enter to continue:")
+    except subprocess.TimeoutExpired:
+        input(
+            f"It took too long to close {process_name}!\n"
+            f"Please close {process_name} manually, then press enter to continue:")
+
+
 def generate_steam_shortcut() -> Tuple[int, int]:
-    terminate_from_keywords(["steam"], "Steam")
+    input(
+        f"Steam will be closed for the following steps.\n If this is okay, press enter to continue:")
+
+    terminate_program("steam")
 
     # Get the existing user ids
     user_data_folder = os.path.join(STEAM_DIR, "userdata")
