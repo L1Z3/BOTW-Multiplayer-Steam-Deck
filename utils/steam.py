@@ -11,7 +11,7 @@ from typing import Tuple
 import vdf
 
 from utils import appids
-from utils.common import MOD_DIR, STEAM_DIR, Shortcut
+from utils.common import MOD_DIR, STEAM_DIR, Shortcut, terminate_program
 
 
 def set_proton_version(prefix_app_id: int):
@@ -37,6 +37,11 @@ def set_proton_version(prefix_app_id: int):
 
 
 def generate_steam_shortcut() -> Tuple[int, int]:
+    input(
+        f"Steam will be closed for the following steps.\n If this is okay, press enter to continue:")
+
+    terminate_program("steam")
+
     # Get the existing user ids
     user_data_folder = os.path.join(STEAM_DIR, "userdata")
     user_ids = os.listdir(user_data_folder)
