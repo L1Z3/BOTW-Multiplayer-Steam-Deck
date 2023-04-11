@@ -441,9 +441,9 @@ def set_proton_version(prefix_app_id: int):
         vdf.dump(data, config_file)
 
 
-def terminate_from_keywords(keywords: list):
+def terminate_from_keywords(keywords: list, displayed_name: str):
     # Wait for the user to press enter to proceed
-    input("Steam must be closed for the following steps.\nPlease close Steam if it is open, otherwise, it will be forcefully closed.\nPress enter to continue:")
+    input(f"{displayed_name} must be closed for the following steps.\nPlease close {displayed_name} if it is open, otherwise, it will be forcefully closed.\nPress enter to continue:")
     
     # Check if the program has already been closed
     for process in psutil.process_iter(['name']):
@@ -457,14 +457,14 @@ def terminate_from_keywords(keywords: list):
                             process.kill()
                     break
         except psutil.AccessDenied:
-            input("This program does not have the correct permissions to close Steam.\nPlease close Steam manually, then press enter to continue:")
+            input(f"This program does not have the correct permissions to close {displayed_name}.\nPlease close Steam manually, then press enter to continue:")
         except (psutil.NoSuchProcess, psutil.ZombieProcess):
             # Handle exceptions that might occur while iterating over running processes
             pass
      
 def generate_steam_shortcut() -> Tuple[int, int]:
 
-    terminate_from_keywords(["steam"])
+    terminate_from_keywords(["steam"],"Steam")
 
     # Get the existing user ids
     user_data_folder = os.path.join(STEAM_DIR, "userdata")
