@@ -463,8 +463,7 @@ def terminate_from_keywords(keywords: list, displayed_name: str):
             pass
      
 def generate_steam_shortcut() -> Tuple[int, int]:
-
-    terminate_from_keywords(["steam"],"Steam")
+    terminate_from_keywords(["steam"], "Steam")
 
     # Get the existing user ids
     user_data_folder = os.path.join(STEAM_DIR, "userdata")
