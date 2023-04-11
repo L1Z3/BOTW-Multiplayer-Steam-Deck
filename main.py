@@ -446,25 +446,22 @@ def generate_steam_shortcut() -> Tuple[int, int]:
     # Wait for the user to press enter to proceed
     input("Steam must be closed for the following steps.\nPlease close Steam if it is open, otherwise, it will be forcefully closed.\nPress enter to continue:")
 
-    process_names = ["steamclient","Steam Client", "steam", "Steam"]
+    process_names = ["steam"]
     
     # Check if the program has already been closed
     for process in psutil.process_iter(['name']):
         try:
-            if process.info['name'] in process_names:
-                process.terminate()  # Terminate the process
-                break
-        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-            # Handle exceptions that might occur while iterating over running processes
-            pass
-    
-    # Make sure the program has been closed
-    for process in psutil.process_iter(['name']):
-        try:
-            if process.info['name'] in process_names:
-                process.kill()  # Forcefully terminate the process if it is still running
-                break
-        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            for process_name in process_names:
+                if process_name in process.info['name'].lower():
+                    process.terminate()  # Terminate the process
+                    #check if closed -- ?? Do we want to forcefully kill ??
+                    for process in psutil.process_iter(['name']):
+                        if process_name in process.info['name'].lower():
+                            process.kill()
+                    break
+        except psutil.AccessDenied:
+            input("This program does not have the correct permissions to close Steam.\nPlease close Steam manually, then press enter to continue:"
+        except (psutil.NoSuchProcess, psutil.ZombieProcess):
             # Handle exceptions that might occur while iterating over running processes
             pass
 
