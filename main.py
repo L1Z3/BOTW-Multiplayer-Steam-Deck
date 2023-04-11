@@ -441,17 +441,14 @@ def set_proton_version(prefix_app_id: int):
         vdf.dump(data, config_file)
 
 
-def generate_steam_shortcut() -> Tuple[int, int]:
-
+def terminate_from_keywords(keywords: list):
     # Wait for the user to press enter to proceed
     input("Steam must be closed for the following steps.\nPlease close Steam if it is open, otherwise, it will be forcefully closed.\nPress enter to continue:")
-
-    process_names = ["steam"]
     
     # Check if the program has already been closed
     for process in psutil.process_iter(['name']):
         try:
-            for process_name in process_names:
+            for process_name in keywords:
                 if process_name in process.info['name'].lower():
                     process.terminate()  # Terminate the process
                     #check if closed -- ?? Do we want to forcefully kill ??
@@ -464,6 +461,10 @@ def generate_steam_shortcut() -> Tuple[int, int]:
         except (psutil.NoSuchProcess, psutil.ZombieProcess):
             # Handle exceptions that might occur while iterating over running processes
             pass
+     
+def generate_steam_shortcut() -> Tuple[int, int]:
+
+    terminate_from_keywords(["steam"])
 
     # Get the existing user ids
     user_data_folder = os.path.join(STEAM_DIR, "userdata")
