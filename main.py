@@ -446,15 +446,16 @@ def terminate_from_keywords(keywords: list, displayed_name: str):
     input(f"{displayed_name} must be closed for the following steps.\nPlease close {displayed_name} if it is open, otherwise, it will be forcefully closed.\nPress enter to continue:")
     
     # Check if the program has already been closed
-    for process in psutil.process_iter(['name']):
+    for process in psutil.process_iter(['pid','name']):
         try:
             for process_name in keywords:
                 if process_name in process.info['name'].lower():
                     process.terminate()  # Terminate the process
-                    #check if closed -- ?? Do we want to forcefully kill ??
-                    for process in psutil.process_iter(['name']):
-                        if process_name in process.info['name'].lower():
-                            process.kill()
+                    gone, alive = psutil.wait_procs(process, timeout=5)
+                    
+                    #for proc in alive: #leaving this here in case we want to do something if it hasn't closed
+                        #proc.kill()
+                    
                     break
         except psutil.AccessDenied:
             input(f"This program does not have the correct permissions to close {displayed_name}.\nPlease close Steam manually, then press enter to continue:")
