@@ -460,7 +460,7 @@ def generate_steam_shortcut() -> Tuple[int, int]:
                             process.kill()
                     break
         except psutil.AccessDenied:
-            input("This program does not have the correct permissions to close Steam.\nPlease close Steam manually, then press enter to continue:"
+            input("This program does not have the correct permissions to close Steam.\nPlease close Steam manually, then press enter to continue:")
         except (psutil.NoSuchProcess, psutil.ZombieProcess):
             # Handle exceptions that might occur while iterating over running processes
             pass
