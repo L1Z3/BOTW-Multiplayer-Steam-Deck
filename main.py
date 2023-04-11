@@ -12,6 +12,7 @@ import uuid
 import vdf
 import zipfile
 import io
+import psutil
 
 import _appids as appids
 from bcml.install import export, install_mod, refresh_merges
@@ -29,7 +30,6 @@ MOD_DIR = os.path.join(WORKING_DIR, "BreathOfTheWildMultiplayer")
 STEAM_DIR = os.path.expanduser("~/.steam/steam")
 
 CEMU_URL = "https://cemu.info/releases/cemu_1.27.1.zip"  # where to download the Cemu zip from
-
 
 def normalize_path(path: str) -> str:
     """
@@ -442,6 +442,32 @@ def set_proton_version(prefix_app_id: int):
 
 
 def generate_steam_shortcut() -> Tuple[int, int]:
+
+    # Wait for the user to press enter to proceed
+    input("Steam must be closed for the following steps.\nPlease close Steam if it is open, otherwise, it will be forcefully closed.\nPress enter to continue:")
+
+    process_names = ["steamclient","Steam Client", "steam", "Steam"]
+    
+    # Check if the program has already been closed
+    for process in psutil.process_iter(['name']):
+        try:
+            if process.info['name'] in process_names:
+                process.terminate()  # Terminate the process
+                break
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            # Handle exceptions that might occur while iterating over running processes
+            pass
+    
+    # Make sure the program has been closed
+    for process in psutil.process_iter(['name']):
+        try:
+            if process.info['name'] in process_names:
+                process.kill()  # Forcefully terminate the process if it is still running
+                break
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            # Handle exceptions that might occur while iterating over running processes
+            pass
+
     # Get the existing user ids
     user_data_folder = os.path.join(STEAM_DIR, "userdata")
     user_ids = os.listdir(user_data_folder)
