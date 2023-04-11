@@ -5,6 +5,7 @@ Functions for setting up Cemu.
 import io
 import os
 import shutil
+import sys
 import zipfile
 from typing import Optional, Tuple
 from xml.etree import ElementTree as ET

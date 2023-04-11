@@ -51,6 +51,7 @@ def download_mod_files():
             print("No version of BOTWM mod downloaded! Exiting installer...", file=sys.stderr)
             exit(1)
         print(f"Continuing with current version ({cur_version})...", file=sys.stderr)
+        time.sleep(0.5)
         return
 
     latest_release = r_json[0]
@@ -89,6 +90,7 @@ def download_mod_files():
             print("No version of BOTWM mod downloaded! Exiting installer...", file=sys.stderr)
             exit(1)
         print(f"Continuing with current version ({cur_version})...", file=sys.stderr)
+        time.sleep(0.5)
         return
 
 
