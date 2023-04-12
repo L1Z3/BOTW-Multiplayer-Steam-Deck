@@ -4,6 +4,7 @@ Functions for interacting with Steam.
 
 import os
 import shutil
+import subprocess
 import sys
 import time
 from typing import Tuple
@@ -12,6 +13,136 @@ import vdf
 
 from utils import appids
 from utils.common import MOD_DIR, STEAM_DIR, Shortcut, terminate_program
+
+
+def install_protontricks() -> str:
+    """
+    Installs Protontricks from Flathub if it is not already installed. Returns the command used to run Protontricks.
+    :return: Command needed to run Protontricks, e.g. "flatpak run com.github.Matoking.protontricks"
+    """
+    flatpak_name = "com.github.Matoking.protontricks"
+
+    # Check if Protontricks is already installed outside of Flatpak
+    try:
+        subprocess.run(["which", "protontricks"], check=True, capture_output=True)
+        print("Protontricks is already installed.")
+        return "protontricks"
+    except subprocess.CalledProcessError:
+        pass  # Protontricks not found outside of Flatpak, continue checking Flatpak
+
+    # Check if flatpak is installed
+    try:
+        subprocess.run(["flatpak", "--version"], check=True, capture_output=True)
+    except subprocess.CalledProcessError:
+        print("Protontricks is not installed on the system. Please either install flatpak (https://flatpak.org/setup/),"
+              "or install protontricks from your package manager, then run this installer again.",
+              file=sys.stderr)
+        exit(1)
+
+    # Check if Protontricks is already installed
+    try:
+        installed_apps_output = subprocess.run(["flatpak", "list"], capture_output=True, text=True, check=True)
+        if flatpak_name in installed_apps_output.stdout:
+            print("Protontricks is already installed.")
+            return f"flatpak run {flatpak_name}"
+    except subprocess.CalledProcessError as e:
+        print(f"Failed to list installed Flatpak apps. Error: {e}", file=sys.stderr)
+        print(f"Please install Protontricks manually (from flatpak or your package manager), "
+              "then run this installer again.", file=sys.stderr)
+        exit(1)
+
+    # Install Protontricks from Flathub
+    try:
+        subprocess.run(["flatpak", "install", "-y", f"{flatpak_name}"], check=True)
+        print("Protontricks has been successfully installed.")
+        return f"flatpak run {flatpak_name}"
+    except subprocess.CalledProcessError as e:
+        print(f"Failed to install Protontricks. Error: {e}", file=sys.stderr)
+        print(f"Please install Protontricks manually (from flatpak or your package manager), "
+              "then run this installer again.", file=sys.stderr)
+        exit(1)
+
+
+def wait_for_file(file_path: str, timeout: float):
+    start_time = time.time()
+    while True:
+        if os.path.exists(file_path):
+            return True  # File exists
+        elapsed_time = time.time() - start_time
+        if elapsed_time > timeout:
+            return False  # Timeout
+        time.sleep(0.1)  # Sleep for a short duration before checking again
+
+
+def add_dependencies_to_prefix(prefix_app_id: int):
+    """
+    Adds the dependencies for the Breath of the Wild multiplayer mod to the Steam prefix.
+    :param prefix_app_id: The Steam app ID of the prefix to add the dependencies to.
+    """
+    protontricks_cmd = install_protontricks()
+
+    prefix_version_file = os.path.join(STEAM_DIR, f"steamapps/compatdata/{prefix_app_id}/version")
+    if not os.path.exists(prefix_version_file):
+        print("Proton prefix for the mod does not exist. Launching the mod once to create it... \n"
+              "(if you see a popup saying that .NET must be installed, simply close it! This installer "
+              "will take care of it.)")
+        # launch the game once to create the prefix
+        try:
+            subprocess.run(["xdg-open", "steam://rungameid/" + str(appids.lengthen_app_id(prefix_app_id))], check=True,
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except subprocess.CalledProcessError as e:
+            print(f"Failed to launch the BOTWM shortcut. Error: {e}", file=sys.stderr)
+            print(
+                f"Please manually open Steam, and open the \"Breath of the Wild Multiplayer\" shortcut once to generate"
+                f"necessary files. Once it has closed/you have closed the shortcut, please press enter.",
+                file=sys.stderr)
+            print("Press enter to continue...", file=sys.stderr, end="")
+            input()
+
+        # wait for the prefix to be created
+        if not wait_for_file(os.path.join(STEAM_DIR, f"steamapps/compatdata/{prefix_app_id}/version"), 20):
+            print("Failed to create the Proton prefix for the mod.", file=sys.stderr)
+            print(f"Please manually open Steam, and open the \"Breath of the Wild Multiplayer\" shortcut once to "
+                  f"generate necessary files. Once it has closed/you have closed the shortcut, please press enter.",
+                  file=sys.stderr)
+            print("Press enter to continue...", file=sys.stderr, end="")
+            input()
+            if not os.path.exists(prefix_version_file):
+                print("Prefix still not created! Please contact the installer authors for help.", file=sys.stderr)
+                exit(1)
+        time.sleep(2.5)  # Wait a bit longer to make sure the prefix is fully created
+        terminate_program("Breath of the Wild Multiplayer.exe")
+        print("Proton prefix for the mod created! Installing dependencies...")
+    else:
+        # proton prefix already exists. let's see if we need dotnetdesktop6
+        try:
+            # Use capture_output=True to capture stdout
+            result = subprocess.run(
+                protontricks_cmd.split() + [str(prefix_app_id), "list-installed"],
+                check=True,
+                capture_output=True,
+                text=True
+            )
+            # Check if "dotnetdesktop6" is present in the output
+            if "dotnetdesktop6" in result.stdout:
+                print("Required dependencies already installed!")
+                return
+        except subprocess.CalledProcessError as e:
+            # Failed to check, let's just assume it's not installed
+            pass
+
+        print("Proton prefix for the mod already exists. Installing dependencies...")
+
+    # install dependencies
+    try:
+        subprocess.run(protontricks_cmd.split() + [str(prefix_app_id), "-q", "dotnetdesktop6"])
+        print("Dependencies installed successfully!")
+    except subprocess.CalledProcessError as e:
+        print(f"Failed to install dependencies. Error: {e}", file=sys.stderr)
+        print(f"Please install the dependencies manually by opening up Protontricks,"
+              f"selecting \"Breath of the Wild Multiplayer\", then installing dotnetdesktop6.", file=sys.stderr)
+        print(f"Once you have done this, please press enter.", file=sys.stderr, end="")
+        input()
 
 
 def set_proton_version(prefix_app_id: int):
@@ -38,9 +169,9 @@ def set_proton_version(prefix_app_id: int):
 
 def generate_steam_shortcut() -> Tuple[int, int]:
     input(
-        f"Steam will be closed for the following steps.\n If this is okay, press enter to continue:")
+        f"Steam will be closed for the following steps.\nIf this is okay, press enter to continue:")
 
-    terminate_program("steam")
+    terminate_program("steam", "Steam")
 
     # Get the existing user ids
     user_data_folder = os.path.join(STEAM_DIR, "userdata")
@@ -79,12 +210,12 @@ def generate_steam_shortcut() -> Tuple[int, int]:
 
     # If not, generate a shortcut with the name "Breath of the Wild Multiplayer Mod"
     if not shortcut_app_id:
-        mod_exe = os.path.join(MOD_DIR, "Breath of the Wild Multiplayer.exe")
+        mod_exe = f"\"{os.path.join(MOD_DIR, 'Breath of the Wild Multiplayer.exe')}\""
         shortcut_app_id = appids.generate_shortcut_id(mod_exe, shortcut_name)
         prefix_app_id = appids.shortcut_id_to_short_app_id(shortcut_app_id)
         icon = os.path.join(STEAM_DIR, f"userdata/{user_id}/config/grid/{prefix_app_id}_icon.png")
 
-        new_shortcut = Shortcut(shortcut_name, mod_exe, MOD_DIR, icon, [])
+        new_shortcut = Shortcut(shortcut_name, mod_exe, f"\"{MOD_DIR}\"", icon, [])
         next_index = max((int(key) for key in shortcuts.get("shortcuts", {}).keys()), default=0) + 1
         shortcuts["shortcuts"][str(next_index)] = \
             {

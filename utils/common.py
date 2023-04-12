@@ -18,19 +18,21 @@ def wait_for_confirmation(prompt: str) -> bool:
     return True if confirmation == "y" else False
 
 
-def terminate_program(process_name: str):
+def terminate_program(process_name: str, display_name: str = None):
+    if display_name is None:
+        display_name = process_name
     # Wait for the user to press enter to proceed
     try:
         subprocess.run(["killall", "-w", process_name], check=True, timeout=15, capture_output=True, text=True)
-        print(f"Successfully closed '{process_name}'.")
+        print(f"Successfully closed '{display_name}'.")
     except subprocess.CalledProcessError as e:
         if "no process found" in e.stderr.lower():
-            print(f"{process_name} was already closed.")
+            print(f"{display_name} was already closed.")
         else:
             input(
-                f"This program does not have the correct permissions to close {process_name}.\n"
-                f"Please close {process_name} manually, then press enter to continue:")
+                f"This program does not have the correct permissions to close {display_name}.\n"
+                f"Please close {display_name} manually, then press enter to continue:")
     except subprocess.TimeoutExpired:
         input(
-            f"It took too long to close {process_name}!\n"
-            f"Please close {process_name} manually, then press enter to continue:")
+            f"It took too long to close {display_name}!\n"
+            f"Please close {display_name} manually, then press enter to continue:")
