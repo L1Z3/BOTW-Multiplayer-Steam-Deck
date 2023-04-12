@@ -15,6 +15,26 @@ from utils import appids
 from utils.common import MOD_DIR, STEAM_DIR, Shortcut, terminate_program, wait_for_file
 
 
+def is_valid_steam_installation(directory: str) -> bool:
+    """
+    Check for the presence of specific directories
+    that indicate a valid Steam installation on Linux.
+    :param directory: directory to check
+    :return: boolean indicating if the directory is a valid Steam installation
+    """
+    dirs_to_check = [
+        'steamapps',
+        'userdata',
+    ]
+
+    for dir_name in dirs_to_check:
+        if not os.path.isdir(os.path.join(directory, dir_name)):
+            return False
+
+    # If all checks passed, the directory is a valid Steam installation.
+    return True
+
+
 def install_protontricks() -> str:
     """
     Installs Protontricks from Flathub if it is not already installed. Returns the command used to run Protontricks.

@@ -1,16 +1,22 @@
 #!/usr/bin/python
 
 import os
+import sys
 
 from utils.cemu import get_user_paths
-from utils.common import WORKING_DIR
-from utils.multiplayer_mod import download_mod_files, generate_graphics_packs, generate_win_settings_json, \
+from utils.common import STEAM_DIR, WORKING_DIR
+from utils.multiplayer_mod import download_mod_files, generate_graphics_packs, \
     place_graphics_packs, \
     update_graphics_packs, update_user_config
-from utils.steam import add_dependencies_to_prefix, add_grids, generate_steam_shortcut
+from utils.steam import add_dependencies_to_prefix, add_grids, generate_steam_shortcut, is_valid_steam_installation
 
 
 def main():
+    if not is_valid_steam_installation(STEAM_DIR):
+        print("Steam installation not found. Please install Steam before running this script.", file=sys.stderr)
+        print(f"(Note, we currently only look for Steam in {STEAM_DIR})", file=sys.stderr)
+        exit(1)
+
     cemu_dir, game_dir, update_dir, dlc_dir = get_user_paths()
     # Generate the working directory
     os.makedirs(WORKING_DIR, exist_ok=True)
