@@ -23,7 +23,7 @@ def terminate_program(process_name: str, display_name: str = None):
         display_name = process_name
     # Wait for the user to press enter to proceed
     try:
-        subprocess.run(["killall", "-w", process_name], check=True, timeout=15, capture_output=True, text=True)
+        subprocess.run(["killall", "-w", process_name], check=True, timeout=30, capture_output=True, text=True)
         print(f"Successfully closed '{display_name}'.")
     except subprocess.CalledProcessError as e:
         if "no process found" in e.stderr.lower():

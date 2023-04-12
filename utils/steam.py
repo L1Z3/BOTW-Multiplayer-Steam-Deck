@@ -110,7 +110,7 @@ def add_dependencies_to_prefix(prefix_app_id: int):
             if not os.path.exists(prefix_version_file):
                 print("Prefix still not created! Please contact the installer authors for help.", file=sys.stderr)
                 exit(1)
-        time.sleep(2.5)  # Wait a bit longer to make sure the prefix is fully created
+        time.sleep(4)  # Wait a bit longer to make sure the prefix is fully created
         terminate_program("Breath of the Wild Multiplayer.exe")
         print("Proton prefix for the mod created! Installing dependencies...")
     else:
@@ -181,10 +181,12 @@ def generate_steam_shortcut() -> Tuple[int, int]:
     # TODO get user name from user id
     # Prompt user to pick the user id
     print("User IDs:")
-    for i, user_id in enumerate(user_ids):
-        print(f"{i + 1}. {user_id}")
+    selected_index = None
+    while selected_index not in range(len(user_ids)):
+        for i, user_id in enumerate(user_ids):
+            print(f"{i + 1}. {user_id}")
 
-    selected_index = int(input("Enter the number of the user ID you want to use: ")) - 1
+        selected_index = int(input("Enter the number of the user ID you want to use: ")) - 1
     user_id = user_ids[selected_index]
 
     shortcuts_path = os.path.join(STEAM_DIR, f"userdata/{user_id}/config/shortcuts.vdf")
