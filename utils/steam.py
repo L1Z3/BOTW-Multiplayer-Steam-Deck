@@ -67,12 +67,17 @@ def run_steam_game(prefix_app_id: int):
     subprocess.run(["xdg-open", f"steam://rungameid/{appids.lengthen_app_id(prefix_app_id)}"], check=True,
                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
+
 def add_dependencies_to_prefix(prefix_app_id: int):
     """
     Adds the dependencies for the Breath of the Wild multiplayer mod to the Steam prefix.
     :param prefix_app_id: The Steam app ID of the prefix to add the dependencies to.
     """
     protontricks_cmd = install_protontricks()
+    dotnet_32_path = os.path.join(STEAM_DIR, f"steamapps/compatdata/{prefix_app_id}/pfx/drive_c/"
+                                             f"Program Files (x86)/dotnet/dotnet.exe")
+    dotnet_64_path = os.path.join(STEAM_DIR, f"steamapps/compatdata/{prefix_app_id}/pfx/drive_c/"
+                                             f"Program Files/dotnet/dotnet.exe")
 
     prefix_version_file = os.path.join(STEAM_DIR, f"steamapps/compatdata/{prefix_app_id}/version")
     if not os.path.exists(prefix_version_file):
@@ -116,7 +121,7 @@ def add_dependencies_to_prefix(prefix_app_id: int):
                 text=True
             )
             # Check if "dotnetdesktop6" is present in the output
-            if "dotnetdesktop6" in result.stdout:
+            if "dotnetdesktop6" in result.stdout and os.path.exists(dotnet_32_path) and os.path.exists(dotnet_64_path):
                 print("Required dependencies already installed!")
                 return
         except subprocess.CalledProcessError as e:
@@ -128,13 +133,21 @@ def add_dependencies_to_prefix(prefix_app_id: int):
     # install dependencies
     try:
         subprocess.run(protontricks_cmd.split() + [str(prefix_app_id), "-q", "dotnetdesktop6"])
-        print("Dependencies installed successfully!")
     except subprocess.CalledProcessError as e:
         print(f"Failed to install dependencies. Error: {e}", file=sys.stderr)
         print(f"Please install the dependencies manually by opening up Protontricks,"
               f"selecting \"Breath of the Wild Multiplayer\", then installing dotnetdesktop6.", file=sys.stderr)
         print(f"Once you have done this, please press enter.", file=sys.stderr, end="")
         input()
+
+    expected_files = [dotnet_32_path, dotnet_64_path]
+    for file in expected_files:
+        if not os.path.exists(file):
+            print(f"Failed to install dependencies! File {file} not found.", file=sys.stderr)
+            print(f"This should not happen! Please contact the installer authors.", file=sys.stderr)
+            exit(1)
+
+    print("Dependencies installed successfully!")
 
 
 def set_proton_version(prefix_app_id: int):

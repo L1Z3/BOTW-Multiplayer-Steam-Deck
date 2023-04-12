@@ -244,7 +244,7 @@ def update_user_config(cemu_dir: str, game_dir: str, update_dir: str, dlc_dir: s
             if not os.path.exists(mod_appdata_path):
                 print("Config files still not found! Please contact the authors of this installer.", file=sys.stderr)
                 exit(1)
-            
+
     all_subdirs = os.listdir(mod_appdata_path)
 
     # Filter the list to include only folders that start with "Breath_of_the_Wild_Multi"
