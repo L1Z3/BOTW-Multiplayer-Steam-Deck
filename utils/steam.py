@@ -282,6 +282,9 @@ def generate_steam_shortcut() -> Tuple[int, int]:
 
 
 def add_grids(app_id: int, user_id: int):
+    grid_dir = os.path.join(STEAM_DIR, f"userdata/{user_id}/config/grid")
+    if not os.path.exists(grid_dir):
+        os.makedirs(grid_dir)
     try:
         for file in os.listdir("./grids"):
             shutil.copy(f"./grids/{file}",
