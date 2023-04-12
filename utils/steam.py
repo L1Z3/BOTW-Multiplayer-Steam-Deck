@@ -53,7 +53,7 @@ def install_protontricks() -> str:
     # Check if flatpak is installed
     try:
         subprocess.run(["flatpak", "--version"], check=True, capture_output=True)
-    except subprocess.CalledProcessError:
+    except (subprocess.CalledProcessError, FileNotFoundError):
         print("Protontricks is not installed on the system. Please either install flatpak (https://flatpak.org/setup/),"
               "or install protontricks from your package manager, then run this installer again.",
               file=sys.stderr)
