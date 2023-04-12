@@ -15,6 +15,26 @@ from utils import appids
 from utils.common import MOD_DIR, STEAM_DIR, Shortcut, terminate_program, wait_for_file
 
 
+def is_valid_steam_installation(directory: str) -> bool:
+    """
+    Check for the presence of specific directories
+    that indicate a valid Steam installation on Linux.
+    :param directory: directory to check
+    :return: boolean indicating if the directory is a valid Steam installation
+    """
+    dirs_to_check = [
+        'steamapps',
+        'userdata',
+    ]
+
+    for dir_name in dirs_to_check:
+        if not os.path.isdir(os.path.join(directory, dir_name)):
+            return False
+
+    # If all checks passed, the directory is a valid Steam installation.
+    return True
+
+
 def install_protontricks() -> str:
     """
     Installs Protontricks from Flathub if it is not already installed. Returns the command used to run Protontricks.
@@ -33,7 +53,7 @@ def install_protontricks() -> str:
     # Check if flatpak is installed
     try:
         subprocess.run(["flatpak", "--version"], check=True, capture_output=True)
-    except subprocess.CalledProcessError:
+    except (subprocess.CalledProcessError, FileNotFoundError):
         print("Protontricks is not installed on the system. Please either install flatpak (https://flatpak.org/setup/),"
               "or install protontricks from your package manager, then run this installer again.",
               file=sys.stderr)
@@ -262,6 +282,9 @@ def generate_steam_shortcut() -> Tuple[int, int]:
 
 
 def add_grids(app_id: int, user_id: int):
+    grid_dir = os.path.join(STEAM_DIR, f"userdata/{user_id}/config/grid")
+    if not os.path.exists(grid_dir):
+        os.makedirs(grid_dir)
     try:
         for file in os.listdir("./grids"):
             shutil.copy(f"./grids/{file}",
