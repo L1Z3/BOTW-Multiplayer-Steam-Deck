@@ -26,9 +26,6 @@ fi
 
 # Compare the current version with the latest version and proceed with download if necessary
 if [ "$CURRENT_VERSION" != "$LATEST_VERSION" ]; then
-    # Update the version file with the latest version
-    echo "$LATEST_VERSION" > "$VERSION_FILE"
-
     # Download the latest release
     curl -sL "$ZIPBALL_URL" -o "$WORKING_DIR/latest_release.zip"
 
@@ -48,24 +45,28 @@ if [ "$CURRENT_VERSION" != "$LATEST_VERSION" ]; then
     rm "$WORKING_DIR/latest_release.zip"
     rm -r "$TEMP_DIR"
 
-    # Download Miniconda 3.10 portable version
-    MINICONDA_URL="https://repo.anaconda.com/miniconda/Miniconda3-py310_23.1.0-1-Linux-x86_64.sh"
-    curl -L "$MINICONDA_URL" -o "$WORKING_DIR/miniconda.sh"
-
-    # Install Miniconda to the miniconda directory
-    bash "$WORKING_DIR/miniconda.sh" -b -p "$MINICONDA_DIR" -u
-
-    # Activate Miniconda environment
-    source "$MINICONDA_DIR/bin/activate"
-
-    # Install the requirements from the requirements.txt file
-    pip install -r "$INSTALLER_DIR/requirements.txt"
-
-    cd "$INSTALLER_DIR"
-
-    # Run the main.py script
-    python "$INSTALLER_DIR/main.py"
-
-    # Deactivate Miniconda environment
-    conda deactivate
+    # Update the version file with the latest version
+    echo "$LATEST_VERSION" > "$VERSION_FILE"
 fi
+
+# Download Miniconda 3.10 portable version
+MINICONDA_URL="https://repo.anaconda.com/miniconda/Miniconda3-py310_23.1.0-1-Linux-x86_64.sh"
+curl -L "$MINICONDA_URL" -o "$WORKING_DIR/miniconda.sh"
+
+# Install Miniconda to the miniconda directory
+bash "$WORKING_DIR/miniconda.sh" -b -p "$MINICONDA_DIR" -u
+
+# Activate Miniconda environment
+source "$MINICONDA_DIR/bin/activate"
+
+# Install the requirements from the requirements.txt file
+pip install -r "$INSTALLER_DIR/requirements.txt"
+
+cd "$INSTALLER_DIR"
+
+# Run the main.py script
+python "$INSTALLER_DIR/main.py"
+
+# Deactivate Miniconda environment
+conda deactivate
+
