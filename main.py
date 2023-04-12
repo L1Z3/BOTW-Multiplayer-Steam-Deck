@@ -4,8 +4,9 @@ import os
 
 from utils.cemu import get_user_paths
 from utils.common import WORKING_DIR
-from utils.multiplayer_mod import download_mod_files, generate_graphics_packs, place_graphics_packs, \
-    update_graphics_packs
+from utils.multiplayer_mod import download_mod_files, generate_graphics_packs, generate_win_settings_json, \
+    place_graphics_packs, \
+    update_graphics_packs, update_user_config
 from utils.steam import add_dependencies_to_prefix, add_grids, generate_steam_shortcut
 
 
@@ -32,6 +33,9 @@ def main():
     # Place the graphics packs in cemu & verify they're in the settings.xml
     place_graphics_packs(cemu_dir, bcml_dir)
     update_graphics_packs(cemu_dir)
+
+    # Point the mod to the correct directories
+    update_user_config(cemu_dir, game_dir, update_dir, dlc_dir, prefix_app_id)
 
 
 if __name__ == "__main__":

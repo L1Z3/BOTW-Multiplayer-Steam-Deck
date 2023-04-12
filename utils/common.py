@@ -1,6 +1,7 @@
 import collections
 import os
 import subprocess
+import time
 
 Shortcut = collections.namedtuple("Shortcut", ["name", "exe", "startdir", "icon", "tags"])
 
@@ -16,6 +17,17 @@ def wait_for_confirmation(prompt: str) -> bool:
     while (confirmation := str(input(prompt)).lower()) not in ["y", "n"]:
         pass
     return True if confirmation == "y" else False
+
+
+def wait_for_file(file_path: str, timeout: float):
+    start_time = time.time()
+    while True:
+        if os.path.exists(file_path):
+            return True  # File exists
+        elapsed_time = time.time() - start_time
+        if elapsed_time > timeout:
+            return False  # Timeout
+        time.sleep(0.1)  # Sleep for a short duration before checking again
 
 
 def terminate_program(process_name: str, display_name: str = None):

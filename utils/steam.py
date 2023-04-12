@@ -12,7 +12,7 @@ from typing import Tuple
 import vdf
 
 from utils import appids
-from utils.common import MOD_DIR, STEAM_DIR, Shortcut, terminate_program
+from utils.common import MOD_DIR, STEAM_DIR, Shortcut, terminate_program, wait_for_file
 
 
 def install_protontricks() -> str:
@@ -63,16 +63,9 @@ def install_protontricks() -> str:
         exit(1)
 
 
-def wait_for_file(file_path: str, timeout: float):
-    start_time = time.time()
-    while True:
-        if os.path.exists(file_path):
-            return True  # File exists
-        elapsed_time = time.time() - start_time
-        if elapsed_time > timeout:
-            return False  # Timeout
-        time.sleep(0.1)  # Sleep for a short duration before checking again
-
+def run_steam_game(prefix_app_id: int):
+    subprocess.run(["xdg-open", f"steam://rungameid/{appids.lengthen_app_id(prefix_app_id)}"], check=True,
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 def add_dependencies_to_prefix(prefix_app_id: int):
     """
@@ -88,8 +81,7 @@ def add_dependencies_to_prefix(prefix_app_id: int):
               "will take care of it.)")
         # launch the game once to create the prefix
         try:
-            subprocess.run(["xdg-open", "steam://rungameid/" + str(appids.lengthen_app_id(prefix_app_id))], check=True,
-                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            run_steam_game(prefix_app_id)
         except subprocess.CalledProcessError as e:
             print(f"Failed to launch the BOTWM shortcut. Error: {e}", file=sys.stderr)
             print(
