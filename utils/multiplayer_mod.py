@@ -5,6 +5,7 @@ Functions for downloading/installing the BOTWM mod.
 import json
 import os
 import shutil
+import subprocess
 import sys
 import time
 import uuid
@@ -19,7 +20,10 @@ from bcml.install import export, install_mod, refresh_merges
 from packaging import version
 from requests.structures import CaseInsensitiveDict
 
-from utils.common import DOWNLOAD_URL, MOD_DIR, WORKING_DIR, wait_for_confirmation
+from utils import appids
+from utils.common import DOWNLOAD_URL, MOD_DIR, STEAM_DIR, WORKING_DIR, terminate_program, wait_for_confirmation, \
+    wait_for_file
+from utils.steam import run_steam_game
 
 
 def get_mod_version() -> Optional[version.Version]:
@@ -177,3 +181,77 @@ def update_graphics_packs(cemu_path: str):
             entry_element = ET.Element("Entry", entry)
             graphic_pack_element.append(entry_element)
     tree.write(settings_path)
+
+
+def generate_win_settings_json(cemu_dir: str, game_dir: str, update_dir: str, dlc_dir: str):
+    with open("settings_template.json", "r") as template_file:
+        settings_json = json.load(template_file)
+    # the mod is ok with forward slashes I'm pretty sure
+    settings_json["game_dir"] = f"Z:{game_dir}"
+    settings_json["dlc_dir"] = f"Z:{dlc_dir}"
+    settings_json["update_dir"] = f"Z:{update_dir}"
+    settings_json["cemu_dir"] = f"Z:{cemu_dir}"
+    with open(os.path.join(WORKING_DIR, "settings_windows.json"), "w") as settings_file:
+        json.dump(settings_json, settings_file, indent=4)
+
+def set_setting_json_location(xml_file_path: str, settings_json_location: str):
+    # Parse the XML file
+    tree = ET.parse(xml_file_path)
+    root = tree.getroot()
+
+    # Get the 'userSettings' element and its 'Breath_of_the_Wild_Multiplayer.Properties.Settings' child
+    user_settings = root.find('.//userSettings/Breath_of_the_Wild_Multiplayer.Properties.Settings')
+
+    # Try to find the 'bcmlLocation' setting
+    bcml_location_setting = user_settings.find(".//setting[@name='bcmlLocation']")
+
+    # If the 'bcmlLocation' setting is not found, create and add it
+    if bcml_location_setting is None:
+        bcml_location_setting = ET.SubElement(user_settings, 'setting', {'name': 'bcmlLocation', 'serializeAs': 'String'})
+        value_element = ET.SubElement(bcml_location_setting, 'value')
+        value_element.text = settings_json_location
+    else:
+        # If the 'bcmlLocation' setting is found, update its value
+        value_element = bcml_location_setting.find('value')
+        value_element.text = settings_json_location
+
+    # Save the changes back to the XML file
+    tree.write(xml_file_path, encoding='utf-8', xml_declaration=True)
+
+
+def update_user_config(cemu_dir: str, game_dir: str, update_dir: str, dlc_dir: str, prefix_app_id: int):
+    generate_win_settings_json(cemu_dir, game_dir, update_dir, dlc_dir)
+    mod_appdata_path = os.path.join(STEAM_DIR,
+                                    f"steamapps/compatdata/{prefix_app_id}/pfx/drive_c/users/steamuser/AppData/Local/",
+                                    f"Breath_of_the_Wild_Multip")
+    if not os.path.exists(mod_appdata_path):
+        print("Need to generate a config file for the mod! Opening the mod...")
+        try:
+            run_steam_game(prefix_app_id)
+            wait_for_file(mod_appdata_path, 30)
+            time.sleep(3)  # make sure the config file is created
+            terminate_program("Breath of the Wild Multiplayer.exe")
+        except subprocess.CalledProcessError as e:
+            print(f"Failed to launch the BOTWM shortcut. Error: {e}", file=sys.stderr)
+            print(
+                f"Please manually open Steam, and open the \"Breath of the Wild Multiplayer\" shortcut to generate the "
+                f"mod's config files. Once it has opened successfully, please close it, and press enter to continue.",
+                file=sys.stderr)
+            print("Press enter to continue...", file=sys.stderr, end="")
+            input()
+
+    all_subdirs = os.listdir(mod_appdata_path)
+
+    # Filter the list to include only folders that start with "Breath_of_the_Wild_Multi"
+    config_files = [os.path.join(mod_appdata_path, item, "1.0.0.0/user.config") for item in all_subdirs if
+                    os.path.exists(os.path.join(mod_appdata_path, item, "1.0.0.0/user.config"))
+                    and item.startswith("Breath_of_the_Wild_Multi")]
+    if len(config_files) == 0:
+        print("No config files found! Please manually open the mod, and close it to generate the config files,"
+              "then rerun the installer.")
+        exit(1)
+
+    for config_file in config_files:
+        setting_json_location = os.path.join(WORKING_DIR, "settings_windows.json")
+        win_settings_json_path = f"Z:{setting_json_location}".replace("/", "\\")
+        set_setting_json_location(config_file, win_settings_json_path)
