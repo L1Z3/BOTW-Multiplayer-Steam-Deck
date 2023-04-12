@@ -194,6 +194,7 @@ def generate_win_settings_json(cemu_dir: str, game_dir: str, update_dir: str, dl
     with open(os.path.join(WORKING_DIR, "settings_windows.json"), "w") as settings_file:
         json.dump(settings_json, settings_file, indent=4)
 
+
 def set_setting_json_location(xml_file_path: str, settings_json_location: str):
     # Parse the XML file
     tree = ET.parse(xml_file_path)
@@ -228,10 +229,11 @@ def update_user_config(cemu_dir: str, game_dir: str, update_dir: str, dlc_dir: s
         print("Need to generate a config file for the mod! Opening the mod...")
         try:
             run_steam_game(prefix_app_id)
-            wait_for_file(mod_appdata_path, 30)
+            if not wait_for_file(mod_appdata_path, 30):
+                raise TimeoutError("Timed out waiting for the mod's config files to be generated.")
             time.sleep(3)  # make sure the config file is created
             terminate_program("Breath of the Wild Multiplayer.exe")
-        except subprocess.CalledProcessError as e:
+        except (subprocess.CalledProcessError, TimeoutError) as e:
             print(f"Failed to launch the BOTWM shortcut. Error: {e}", file=sys.stderr)
             print(
                 f"Please manually open Steam, and open the \"Breath of the Wild Multiplayer\" shortcut to generate the "
@@ -239,7 +241,10 @@ def update_user_config(cemu_dir: str, game_dir: str, update_dir: str, dlc_dir: s
                 file=sys.stderr)
             print("Press enter to continue...", file=sys.stderr, end="")
             input()
-
+            if not os.path.exists(mod_appdata_path):
+                print("Config files still not found! Please contact the authors of this installer.", file=sys.stderr)
+                exit(1)
+            
     all_subdirs = os.listdir(mod_appdata_path)
 
     # Filter the list to include only folders that start with "Breath_of_the_Wild_Multi"
