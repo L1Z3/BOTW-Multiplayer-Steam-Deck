@@ -132,7 +132,7 @@ def add_dependencies_to_prefix(prefix_app_id: int):
 
     # install dependencies
     try:
-        subprocess.run(protontricks_cmd.split() + [str(prefix_app_id), "-q", "dotnetdesktop6"])
+        subprocess.run(protontricks_cmd.split() + [str(prefix_app_id), "-q", "dotnetdesktop6"], check=True)
     except subprocess.CalledProcessError as e:
         print(f"Failed to install dependencies. Error: {e}", file=sys.stderr)
         print(f"Please install the dependencies manually by opening up Protontricks,"
