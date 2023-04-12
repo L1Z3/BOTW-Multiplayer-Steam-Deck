@@ -47,10 +47,13 @@ def download_mod_files():
 
     r_json = r.json()
     # if the response doesn't look right, throw an error
-    if len(r_json) == 0 or ("message" in r_json and "rate limit" in r_json["message"]):
+    if len(r_json) == 0 or ("message" in r_json and ("rate limit" in r_json["message"] or
+                                                     "Not Found" in r_json["message"])):
         print("Error checking for mod file updates!", file=sys.stderr)
         if "message" in r_json and "rate limit" in r_json["message"]:
             print("(GitHub returned an API rate limit error.)", file=sys.stderr)
+        elif "message" in r_json and "Not Found" in r_json["message"]:
+            print("(GitHub returned a 404 error. Mod seems to be gone?)", file=sys.stderr)
         if cur_version is None:
             print("No version of BOTWM mod downloaded! Exiting installer...", file=sys.stderr)
             exit(1)
