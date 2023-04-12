@@ -16,17 +16,17 @@ def generate_preliminary_id(exe: str, appname: str) -> int:
     return (top << 32) | 0x02000000
 
 
-# Used for Big Picture Grids
+# Used for Big Picture Grids ("long appid")
 def generate_app_id(exe: str, appname: str) -> int:
     return generate_preliminary_id(exe, appname)
 
 
-# Used for all other Grids
+# Used for all other Grids ("prefix app id")
 def generate_short_app_id(exe: str, appname: str) -> int:
     return generate_preliminary_id(exe, appname) >> 32
 
 
-# Used as appid in shortcuts.vdf
+# Used as appid in shortcuts.vdf ("shortcuts.vdf appid")
 def generate_shortcut_id(exe: str, appname: str) -> int:
     return (generate_preliminary_id(exe, appname) >> 32) - 0x100000000
 
