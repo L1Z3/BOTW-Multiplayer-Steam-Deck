@@ -3,6 +3,7 @@ Functions for interacting with Steam.
 """
 
 import os
+import io
 import shutil
 import subprocess
 import sys
@@ -202,14 +203,29 @@ def generate_steam_shortcut() -> Tuple[int, int]:
     user_data_folder = os.path.join(STEAM_DIR, "userdata")
     user_ids = os.listdir(user_data_folder)
     shortcut_name = "Breath of the Wild Multiplayer"
+    user_names = {}
 
-    # TODO get user name from user id
+    # get user name from user id
+    for id in user_ids:
+        localconfig_vdf_path = os.path.join(STEAM_DIR, f"userdata/{id}/config", "localconfig.vdf")
+
+    with io.open(localconfig_vdf_path, "r", encoding="utf-8") as config_file:
+        id_data = str(vdf.load(config_file))
+        id_data = id_data[id_data.index("friends"):id_data.index("Offline")] #just in case
+
+    
+
+    for uid in user_ids:
+        if uid not in user_names.keys():
+            user_id_location = id_data.index(uid)+len(uid)+13
+            user_names[id] = id_data[user_id_location:id_data.index(',',user_id_location)-1] #feel free to change to use the vdf module if wanted
+
     # Prompt user to pick the user id
     print("User IDs:")
     selected_index = None
     while selected_index not in range(len(user_ids)):
         for i, user_id in enumerate(user_ids):
-            print(f"{i + 1}. {user_id}")
+            print(f"{i + 1}. {user_id} : {user_names[user_id]}")
 
         selected_index = int(input("Enter the number of the user ID you want to use: ")) - 1
     user_id = user_ids[selected_index]
