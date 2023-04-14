@@ -212,18 +212,17 @@ def generate_steam_shortcut() -> Tuple[int, int]:
         with io.open(localconfig_vdf_path, "r", encoding="utf-8") as config_file:
             id_data = vdf.load(config_file)
 
+        friends_dict = id_data["UserLocalConfigStore"]["friends"]
         for uid in user_ids:
             if uid not in user_names.keys():
-                try:
-                    user_names[uid] = id_data["UserLocalConfigStore"]["friends"][uid]["name"]
-                except KeyError:
-                    try:
-                        user_names[id] = id_data["UserLocalConfigStore"]["friends"]["PersonaName"]
-                    except:
-                        user_names[id] = "?"
 
-        if id not in user_names.keys():
-            user_names[id] = "?"
+                if uid in friends_dict.keys():
+                    user_names[uid] = friends_dict[uid]["name"]
+                else:
+                    if "PersonaName" in friends_dict.keys():
+                        user_names[id] = id_data["UserLocalConfigStore"]["friends"]["PersonaName"]
+                    else:
+                        user_names[id] = "?"
     
     
 
