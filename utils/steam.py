@@ -3,6 +3,7 @@ Functions for interacting with Steam.
 """
 
 import os
+import io
 import shutil
 import subprocess
 import sys
@@ -202,16 +203,41 @@ def generate_steam_shortcut() -> Tuple[int, int]:
     user_data_folder = os.path.join(STEAM_DIR, "userdata")
     user_ids = os.listdir(user_data_folder)
     shortcut_name = "Breath of the Wild Multiplayer"
+    user_names = {}
 
-    # TODO get user name from user id
+    # get user name from user id
+    for uid in user_ids:
+        localconfig_vdf_path = os.path.join(STEAM_DIR, f"userdata/{uid}/config", "localconfig.vdf")
+        if not os.path.exists(localconfig_vdf_path):
+            continue
+
+        with io.open(localconfig_vdf_path, "r", encoding="utf-8") as config_file:
+            id_data = vdf.load(config_file)
+
+        if "UserLocalConfigStore" not in id_data.keys() or "friends" not in id_data["UserLocalConfigStore"].keys():
+            continue
+
+        friends_dict = id_data["UserLocalConfigStore"]["friends"]
+        if "PersonalName" in friends_dict.keys():
+            user_names[uid] = friends_dict["PersonalName"]
+
+        # search for all other uids in `uid`'s vdf
+        # this takes care of the potential edge case where `uid`'s vdf has the name of another user (`friend_uid`), but
+        # that other user does not have a localconfig.vdf with their name; thus we can source the name from `uid`'s vdf
+        for friend_uid in user_ids:
+            if friend_uid in user_names.keys():
+                continue
+            if friend_uid in friends_dict.keys() and "name" in friends_dict[friend_uid].keys():
+                user_names[friend_uid] = friends_dict[friend_uid]["name"]
+            
     # Prompt user to pick the user id
-    print("User IDs:")
+    print("Users:")
     selected_index = None
     while selected_index not in range(len(user_ids)):
         for i, user_id in enumerate(user_ids):
-            print(f"{i + 1}. {user_id}")
+            print(f"{i + 1}. {user_names[user_id] if user_id in user_names.keys() else '?'} ({user_id})")
 
-        selected_index = int(input("Enter the number of the user ID you want to use: ")) - 1
+        selected_index = int(input("Enter the number of the user you want to use: ")) - 1
     user_id = user_ids[selected_index]
 
     shortcuts_path = os.path.join(STEAM_DIR, f"userdata/{user_id}/config/shortcuts.vdf")
