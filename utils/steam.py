@@ -208,12 +208,11 @@ def generate_steam_shortcut() -> Tuple[int, int]:
     # get user name from user id
     for id in user_ids:
         localconfig_vdf_path = os.path.join(STEAM_DIR, f"userdata/{id}/config", "localconfig.vdf")
-
-        try:
-            with io.open(localconfig_vdf_path, "r", encoding="utf-8") as config_file:
-                id_data = vdf.load(config_file)
-        except FileNotFoundError:
+        if not os.path.exists(localconfig_vdf_path):
             continue
+
+        with io.open(localconfig_vdf_path, "r", encoding="utf-8") as config_file:
+            id_data = vdf.load(config_file)
 
         friends_dict = id_data["UserLocalConfigStore"]["friends"]
         for uid in user_ids:
@@ -223,18 +222,13 @@ def generate_steam_shortcut() -> Tuple[int, int]:
                 user_names[uid] = friends_dict[uid]["name"]
             elif "PersonalName" in friends_dict.keys():
                 user_names[id] = friends_dict["PersonalName"]
-    
-    
-    for id in user_ids:
-        if id not in user_names.keys():
-            user_names[id] = "?"
             
     # Prompt user to pick the user id
     print("User IDs:")
     selected_index = None
     while selected_index not in range(len(user_ids)):
         for i, user_id in enumerate(user_ids):
-            print(f"{i + 1}. {user_id} ({user_names[user_id]})")
+            print(f"{i + 1}. {user_id} ({user_names[user_id] if user_id in user_names.keys() else '?'})")
 
         selected_index = int(input("Enter the number of the user ID you want to use: ")) - 1
     user_id = user_ids[selected_index]
