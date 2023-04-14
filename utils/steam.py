@@ -214,14 +214,20 @@ def generate_steam_shortcut() -> Tuple[int, int]:
 
         for uid in user_ids:
             if uid not in user_names.keys():
-                user_names[id] = id_data["UserLocalConfigStore"]["friends"][uid]["name"]
+                try:
+                    user_names[uid] = id_data["UserLocalConfigStore"]["friends"][uid]["name"]
+                except KeyError:
+                    try:
+                        user_names[id] = id_data["UserLocalConfigStore"]["friends"]["PersonaName"]
+                    except:
+                        user_names[id] = "?"
 
     # Prompt user to pick the user id
     print("User IDs:")
     selected_index = None
     while selected_index not in range(len(user_ids)):
         for i, user_id in enumerate(user_ids):
-            print(f"{i + 1}. {user_id} : {user_names[user_id]}")
+            print(f"{i + 1}. {user_id} ({user_names[user_id]})")
 
         selected_index = int(input("Enter the number of the user ID you want to use: ")) - 1
     user_id = user_ids[selected_index]
