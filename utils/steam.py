@@ -220,7 +220,7 @@ def generate_steam_shortcut() -> Tuple[int, int]:
                     user_names[uid] = friends_dict[uid]["name"]
                 else:
                     if "PersonaName" in friends_dict.keys():
-                        user_names[id] = id_data["UserLocalConfigStore"]["friends"]["PersonaName"]
+                        user_names[id] = friends_dict["PersonaName"]
                     else:
                         user_names[id] = "?"
     
