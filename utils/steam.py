@@ -224,13 +224,13 @@ def generate_steam_shortcut() -> Tuple[int, int]:
                 user_names[id] = friends_dict["PersonalName"]
             
     # Prompt user to pick the user id
-    print("User IDs:")
+    print("Users:")
     selected_index = None
     while selected_index not in range(len(user_ids)):
         for i, user_id in enumerate(user_ids):
-            print(f"{i + 1}. {user_id} ({user_names[user_id] if user_id in user_names.keys() else '?'})")
+            print(f"{i + 1}. {user_names[user_id] if user_id in user_names.keys() else '?'} ({user_id})")
 
-        selected_index = int(input("Enter the number of the user ID you want to use: ")) - 1
+        selected_index = int(input("Enter the number of the user you want to use: ")) - 1
     user_id = user_ids[selected_index]
 
     shortcuts_path = os.path.join(STEAM_DIR, f"userdata/{user_id}/config/shortcuts.vdf")
