@@ -206,22 +206,29 @@ def generate_steam_shortcut() -> Tuple[int, int]:
     user_names = {}
 
     # get user name from user id
-    for id in user_ids:
-        localconfig_vdf_path = os.path.join(STEAM_DIR, f"userdata/{id}/config", "localconfig.vdf")
+    for uid in user_ids:
+        localconfig_vdf_path = os.path.join(STEAM_DIR, f"userdata/{uid}/config", "localconfig.vdf")
         if not os.path.exists(localconfig_vdf_path):
             continue
 
         with io.open(localconfig_vdf_path, "r", encoding="utf-8") as config_file:
             id_data = vdf.load(config_file)
 
+        if "UserLocalConfigStore" not in id_data.keys() or "friends" not in id_data["UserLocalConfigStore"].keys():
+            continue
+
         friends_dict = id_data["UserLocalConfigStore"]["friends"]
-        for uid in user_ids:
-            if uid in user_names.keys():
+        if "PersonalName" in friends_dict.keys():
+            user_names[uid] = friends_dict["PersonalName"]
+
+        # search for all other uids in `uid`'s vdf
+        # this takes care of the potential edge case where `uid`'s vdf has the name of another user (`friend_uid`), but
+        # that other user does not have a localconfig.vdf with their name; thus we can source the name from `uid`'s vdf
+        for friend_uid in user_ids:
+            if friend_uid in user_names.keys():
                 continue
-            if uid in friends_dict.keys():
-                user_names[uid] = friends_dict[uid]["name"]
-            elif "PersonalName" in friends_dict.keys():
-                user_names[id] = friends_dict["PersonalName"]
+            if friend_uid in friends_dict.keys() and "name" in friends_dict[friend_uid].keys():
+                user_names[friend_uid] = friends_dict[friend_uid]["name"]
             
     # Prompt user to pick the user id
     print("Users:")
