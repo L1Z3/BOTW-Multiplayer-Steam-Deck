@@ -222,6 +222,11 @@ def generate_steam_shortcut() -> Tuple[int, int]:
                     except:
                         user_names[id] = "?"
 
+        if id not in user_names.keys():
+            user_names[id] = "?"
+    
+    
+
     # Prompt user to pick the user id
     print("User IDs:")
     selected_index = None
